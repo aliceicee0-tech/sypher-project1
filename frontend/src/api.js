@@ -15,6 +15,22 @@ export const api = {
   // Generation
   startGeneration: (body) => http('/generate', { method: 'POST', body: JSON.stringify(body) }),
   getGeneration: (jobId) => http(`/generate/${jobId}`),
+  // Polling helper: resolves with the final audio URL (or rejects on error).
+  pollUntilReady: (jobId, { interval = 1500, onTick } = {}) =>
+    new Promise((resolve, reject) => {
+      const tick = async () => {
+        try {
+          const r = await http(`/generate/${jobId}`);
+          onTick?.(r);
+          if (r.status === 'ready') return resolve(r.audioUrl);
+          if (r.status === 'error') return reject(new Error('generation failed'));
+          setTimeout(tick, interval);
+        } catch (e) {
+          reject(e);
+        }
+      };
+      tick();
+    }),
 
   // Projects
   listProjects: () => http('/projects'),

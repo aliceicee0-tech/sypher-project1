@@ -1,23 +1,45 @@
 import { config, isMockMode } from '../config.js';
 
 /*
- * Treblo client.
+ * Treblo client (ASYNC flow).
  *
- * The official Treblo API spec was not available when this was written, so the
- * three assumptions below are isolated here and clearly flagged. Adjust them in
- * one place once the real spec is known — the rest of the app does not care.
+ * Confirmed from the Treblo docs:
+ *   - Base URL : https://api.treblo.com/v1            (config.treblo.baseUrl)
+ *   - Auth     : Authorization: Bearer <key>          (authHeaders below)
+ *   - Flow     : ASYNC — a "core parameter" POST starts generation, a
+ *                "data fetching" GET retrieves the result.
  *
- *   ASSUMPTION 1 (base URL): config.treblo.baseUrl, default https://api.treblo.com/v1
- *   ASSUMPTION 2 (auth):     Authorization: Bearer <key>  header
- *   ASSUMPTION 3 (flow):     ASYNC — POST a prompt -> get { job_id }, then poll
- *                            GET /jobs/:id until { status: 'ready', audio_url }.
+ * The only thing that may still differ from this implementation is the exact
+ * FIELD NAMES in the JSON payloads/responses. They are all centralized in the
+ * two maps below — adjust them in ONE place to match the real docs:
+ *
+ *   ENDPOINTS  : the POST and GET paths.
+ *   FIELDS     : the request/response field names.
  */
 
-const MOCK_AUDIO_URL =
-  'https://cdn.treblo.com/outputs/mock_sample_track.mp3'; // placeholder sample
+// --- Adjust these to match the Treblo docs exactly -------------------------
+const ENDPOINTS = {
+  // POST endpoint that starts a generation.
+  create: (baseUrl) => `${baseUrl}/generate`,
+  // GET endpoint that fetches a generation by its id.
+  fetch: (baseUrl, id) => `${baseUrl}/generate/${id}`,
+};
+
+const FIELDS = {
+  // POST response: where the job/generation id lives.
+  id: 'id', // e.g. 'id' | 'job_id' | 'task_id' | 'generation_id'
+  // GET response: status field + the value that means "finished".
+  status: 'status', // e.g. 'status'
+  readyValue: 'completed', // e.g. 'completed' | 'ready' | 'succeeded'
+  errorValue: 'failed', // e.g. 'failed' | 'error'
+  // GET response: where the final audio URL lives.
+  audioUrl: 'audio_url', // e.g. 'audio_url' | 'output' | 'url'
+};
+// ---------------------------------------------------------------------------
+
+const MOCK_AUDIO_URL = 'https://cdn.treblo.com/outputs/mock_sample_track.mp3';
 
 function authHeaders() {
-  // ASSUMPTION 2: change here if Treblo uses a custom header (e.g. x-api-key).
   return {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${config.treblo.apiKey}`,
@@ -25,32 +47,30 @@ function authHeaders() {
 }
 
 /**
- * Start a generation. Returns { jobId, status }.
+ * Start a generation (the "core parameter" POST).
+ * Returns { jobId, status }.
  */
 export async function startGeneration({ prompt, style_tags = [], duration = 30 }) {
   if (isMockMode) {
-    // Mock: pretend a job was queued.
     return { jobId: `mock_${Date.now()}`, status: 'generating' };
   }
 
-  // ASSUMPTION 1 + 3: POST the prompt to the generation endpoint.
-  const res = await fetch(`${config.treblo.baseUrl}/generate`, {
+  const res = await fetch(ENDPOINTS.create(config.treblo.baseUrl), {
     method: 'POST',
     headers: authHeaders(),
     body: JSON.stringify({ prompt, style_tags, duration }),
   });
   if (!res.ok) throw new Error(`Treblo generate failed: ${res.status}`);
   const data = await res.json();
-  // Expected shape: { job_id, status }
-  return { jobId: data.job_id, status: data.status || 'generating' };
+  return { jobId: data[FIELDS.id], status: 'generating' };
 }
 
 /**
- * Poll a generation job. Returns { status, audioUrl }.
+ * Fetch / poll a generation (the "data fetching" GET).
+ * Returns { status: 'generating' | 'ready' | 'error', audioUrl }.
  */
 export async function getGenerationStatus(jobId) {
   if (isMockMode) {
-    // Mock: a job created > 2.5s ago is considered ready.
     const startedAt = Number(String(jobId).replace('mock_', '')) || 0;
     const ready = Date.now() - startedAt > 2500;
     return ready
@@ -58,12 +78,17 @@ export async function getGenerationStatus(jobId) {
       : { status: 'generating', audioUrl: '' };
   }
 
-  // ASSUMPTION 3: poll the job status endpoint.
-  const res = await fetch(`${config.treblo.baseUrl}/jobs/${jobId}`, {
+  const res = await fetch(ENDPOINTS.fetch(config.treblo.baseUrl, jobId), {
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error(`Treblo status failed: ${res.status}`);
+  if (!res.ok) throw new Error(`Treblo fetch failed: ${res.status}`);
   const data = await res.json();
-  // Expected shape: { status, audio_url }
-  return { status: data.status, audioUrl: data.audio_url || '' };
+
+  const raw = data[FIELDS.status];
+  // Normalize the provider status into our internal vocabulary.
+  let status = 'generating';
+  if (raw === FIELDS.readyValue) status = 'ready';
+  else if (raw === FIELDS.errorValue) status = 'error';
+
+  return { status, audioUrl: data[FIELDS.audioUrl] || '' };
 }

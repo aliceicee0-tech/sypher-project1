@@ -20,6 +20,12 @@ const DEFAULT_MODEL = 'v3'; // 'v2' | 'v3'
 const SUCCESS_STATUS = 'SUCCESS';
 const FAILURE_STATUS = 'FAILURE';
 
+// Real-time streaming host for v3 generations.
+const STREAM_HOST = 'https://api-stream.treblo.com';
+export function streamUrl(taskId) {
+  return `${STREAM_HOST}/stream/${taskId}`;
+}
+
 const MOCK_AUDIO_URL = 'https://cdn.treblo.com/outputs/mock_sample_track.mp3';
 
 function authHeaders(json = true) {
@@ -28,17 +34,26 @@ function authHeaders(json = true) {
   return h;
 }
 
-// Build the request body from our generic node inputs, per model.
-function buildPayload(model, { prompt, style_tags = [], duration }) {
-  const body = { prompt, output_format: 'mp3' }; // mp3 for HTML5 <audio>
+// Build the request body from our generic inputs, per model.
+function buildPayload(model, { prompt, style_tags = [], duration, lyrics, instrumental, enableStreaming }) {
+  const body = { output_format: 'mp3', stream_format: 'mp3' }; // mp3 for HTML5 <audio>
+  if (prompt && prompt.trim()) body.prompt = prompt.trim();
+
   const tags = (style_tags || []).filter(Boolean);
   if (tags.length) body.tags = tags;
 
-  if (model === 'v3' && duration) {
-    // length_range expects [min, max] in seconds, both multiples of 30.
-    const max = Math.min(300, Math.max(30, Math.round(duration / 30) * 30));
-    const min = Math.max(0, max - 30);
-    body.length_range = [min, max];
+  if (lyrics && lyrics.trim()) body.lyrics = lyrics.trim();
+  if (typeof instrumental === 'boolean') body.instrumental = instrumental;
+
+  if (model === 'v3') {
+    // Streaming is v3-only; enable it so playback can start almost instantly.
+    if (enableStreaming) body.enable_streaming = true;
+    if (duration) {
+      // length_range expects [min, max] in seconds, both multiples of 30.
+      const max = Math.min(300, Math.max(30, Math.round(duration / 30) * 30));
+      const min = Math.max(0, max - 30);
+      body.length_range = [min, max];
+    }
   }
   return body;
 }
@@ -51,20 +66,30 @@ export async function startGeneration({
   prompt,
   style_tags = [],
   duration = 30,
+  lyrics = '',
+  instrumental,
   model = DEFAULT_MODEL,
+  enableStreaming = false,
 }) {
   if (isMockMode) {
-    return { jobId: `mock_${Date.now()}`, status: 'generating' };
+    return { jobId: `mock_${Date.now()}`, status: 'generating', streamUrl: '' };
   }
 
   const res = await fetch(`${config.treblo.baseUrl}/generations/${model}`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify(buildPayload(model, { prompt, style_tags, duration })),
+    body: JSON.stringify(
+      buildPayload(model, { prompt, style_tags, duration, lyrics, instrumental, enableStreaming })
+    ),
   });
   if (!res.ok) throw new Error(`Treblo generate failed: ${res.status}`);
   const data = await res.json();
-  return { jobId: data.task_id, status: 'generating' };
+  return {
+    jobId: data.task_id,
+    status: 'generating',
+    // For v3 streaming, the client can start playing this immediately.
+    streamUrl: model === 'v3' && enableStreaming ? streamUrl(data.task_id) : '',
+  };
 }
 
 /**

@@ -1,94 +1,106 @@
 import { config, isMockMode } from '../config.js';
 
 /*
- * Treblo client (ASYNC flow).
+ * Treblo client — wired to the official v2 / v3 docs (ASYNC flow).
  *
- * Confirmed from the Treblo docs:
- *   - Base URL : https://api.treblo.com/v1            (config.treblo.baseUrl)
- *   - Auth     : Authorization: Bearer <key>          (authHeaders below)
- *   - Flow     : ASYNC — a "core parameter" POST starts generation, a
- *                "data fetching" GET retrieves the result.
+ *   Base URL : https://api.treblo.com/v1               (config.treblo.baseUrl)
+ *   Auth     : Authorization: Bearer <key>
+ *   Create   : POST /generations/v3 (or /v2)  -> { "task_id": "..." }
+ *   Status   : GET  /generations/status/{task_id} -> a RAW STRING, e.g.
+ *              "GENERATING" | "SUCCESS" | "FAILURE" | "GENERATING_STREAMING_READY"
+ *   Result   : GET  /generations/{task_id} -> { song_paths: [url, ...], ... }
  *
- * The only thing that may still differ from this implementation is the exact
- * FIELD NAMES in the JSON payloads/responses. They are all centralized in the
- * two maps below — adjust them in ONE place to match the real docs:
- *
- *   ENDPOINTS  : the POST and GET paths.
- *   FIELDS     : the request/response field names.
+ * Polling strategy: hit the lightweight status endpoint; once it reports
+ * SUCCESS, fetch the full generation and return song_paths[0].
  */
 
-// --- Adjust these to match the Treblo docs exactly -------------------------
-const ENDPOINTS = {
-  // POST endpoint that starts a generation.
-  create: (baseUrl) => `${baseUrl}/generate`,
-  // GET endpoint that fetches a generation by its id.
-  fetch: (baseUrl, id) => `${baseUrl}/generate/${id}`,
-};
+const DEFAULT_MODEL = 'v3'; // 'v2' | 'v3'
 
-const FIELDS = {
-  // POST response: where the job/generation id lives.
-  id: 'id', // e.g. 'id' | 'job_id' | 'task_id' | 'generation_id'
-  // GET response: status field + the value that means "finished".
-  status: 'status', // e.g. 'status'
-  readyValue: 'completed', // e.g. 'completed' | 'ready' | 'succeeded'
-  errorValue: 'failed', // e.g. 'failed' | 'error'
-  // GET response: where the final audio URL lives.
-  audioUrl: 'audio_url', // e.g. 'audio_url' | 'output' | 'url'
-};
-// ---------------------------------------------------------------------------
+// Treblo status strings -> our internal vocabulary.
+const SUCCESS_STATUS = 'SUCCESS';
+const FAILURE_STATUS = 'FAILURE';
 
 const MOCK_AUDIO_URL = 'https://cdn.treblo.com/outputs/mock_sample_track.mp3';
 
-function authHeaders() {
-  return {
-    'Content-Type': 'application/json',
-    Authorization: `Bearer ${config.treblo.apiKey}`,
-  };
+function authHeaders(json = true) {
+  const h = { Authorization: `Bearer ${config.treblo.apiKey}` };
+  if (json) h['Content-Type'] = 'application/json';
+  return h;
+}
+
+// Build the request body from our generic node inputs, per model.
+function buildPayload(model, { prompt, style_tags = [], duration }) {
+  const body = { prompt, output_format: 'mp3' }; // mp3 for HTML5 <audio>
+  const tags = (style_tags || []).filter(Boolean);
+  if (tags.length) body.tags = tags;
+
+  if (model === 'v3' && duration) {
+    // length_range expects [min, max] in seconds, both multiples of 30.
+    const max = Math.min(300, Math.max(30, Math.round(duration / 30) * 30));
+    const min = Math.max(0, max - 30);
+    body.length_range = [min, max];
+  }
+  return body;
 }
 
 /**
- * Start a generation (the "core parameter" POST).
- * Returns { jobId, status }.
+ * Start a generation. Returns { jobId, status }.
+ * jobId maps to Treblo's task_id.
  */
-export async function startGeneration({ prompt, style_tags = [], duration = 30 }) {
+export async function startGeneration({
+  prompt,
+  style_tags = [],
+  duration = 30,
+  model = DEFAULT_MODEL,
+}) {
   if (isMockMode) {
     return { jobId: `mock_${Date.now()}`, status: 'generating' };
   }
 
-  const res = await fetch(ENDPOINTS.create(config.treblo.baseUrl), {
+  const res = await fetch(`${config.treblo.baseUrl}/generations/${model}`, {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ prompt, style_tags, duration }),
+    body: JSON.stringify(buildPayload(model, { prompt, style_tags, duration })),
   });
   if (!res.ok) throw new Error(`Treblo generate failed: ${res.status}`);
   const data = await res.json();
-  return { jobId: data[FIELDS.id], status: 'generating' };
+  return { jobId: data.task_id, status: 'generating' };
 }
 
 /**
- * Fetch / poll a generation (the "data fetching" GET).
- * Returns { status: 'generating' | 'ready' | 'error', audioUrl }.
+ * Poll a generation by task id. Returns { status, audioUrl }.
+ * status is one of: 'generating' | 'ready' | 'error'.
  */
-export async function getGenerationStatus(jobId) {
+export async function getGenerationStatus(taskId) {
   if (isMockMode) {
-    const startedAt = Number(String(jobId).replace('mock_', '')) || 0;
+    const startedAt = Number(String(taskId).replace('mock_', '')) || 0;
     const ready = Date.now() - startedAt > 2500;
     return ready
       ? { status: 'ready', audioUrl: MOCK_AUDIO_URL }
       : { status: 'generating', audioUrl: '' };
   }
 
-  const res = await fetch(ENDPOINTS.fetch(config.treblo.baseUrl, jobId), {
-    headers: authHeaders(),
+  // 1) Lightweight status check (returns a raw JSON string).
+  const statusRes = await fetch(
+    `${config.treblo.baseUrl}/generations/status/${taskId}`,
+    { headers: authHeaders(false) }
+  );
+  if (!statusRes.ok) throw new Error(`Treblo status failed: ${statusRes.status}`);
+  const rawStatus = (await statusRes.json()); // e.g. "GENERATING" | "SUCCESS"
+
+  if (rawStatus === FAILURE_STATUS) {
+    return { status: 'error', audioUrl: '' };
+  }
+  if (rawStatus !== SUCCESS_STATUS) {
+    return { status: 'generating', audioUrl: '' };
+  }
+
+  // 2) Done — fetch the full generation to get the final audio URL(s).
+  const res = await fetch(`${config.treblo.baseUrl}/generations/${taskId}`, {
+    headers: authHeaders(false),
   });
   if (!res.ok) throw new Error(`Treblo fetch failed: ${res.status}`);
   const data = await res.json();
-
-  const raw = data[FIELDS.status];
-  // Normalize the provider status into our internal vocabulary.
-  let status = 'generating';
-  if (raw === FIELDS.readyValue) status = 'ready';
-  else if (raw === FIELDS.errorValue) status = 'error';
-
-  return { status, audioUrl: data[FIELDS.audioUrl] || '' };
+  const audioUrl = Array.isArray(data.song_paths) ? data.song_paths[0] || '' : '';
+  return { status: 'ready', audioUrl };
 }

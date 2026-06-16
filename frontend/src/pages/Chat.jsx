@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import Composer from '../components/chat/Composer.jsx';
 import TrackMessage from '../components/chat/TrackMessage.jsx';
+import GoogleButton from '../components/auth/GoogleButton.jsx';
 
 let mid = 0;
 const newId = () => `m_${Date.now()}_${mid++}`;
@@ -64,9 +65,12 @@ export default function Chat() {
 
   return (
     <div className="chat">
-      <header class="chat__bar">
+      <header className="chat__bar">
         <div className="brand">MusiBlock</div>
-        <a className="chat__link" href="/projects">Projects</a>
+        <div className="chat__bar-right">
+          <a className="chat__link" href="/projects">Projects</a>
+          <GoogleButton />
+        </div>
       </header>
 
       <div className="chat__scroll" ref={scroller}>

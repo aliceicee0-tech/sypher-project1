@@ -4,6 +4,7 @@ const BASE = '/api';
 async function http(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include', // send the auth cookie with every request
     ...options,
   });
   if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error || res.statusText);
@@ -41,4 +42,10 @@ export const api = {
 
   // Public share
   getShared: (id) => http(`/share/${id}`),
+
+  // Auth
+  me: () => http('/auth/me'),
+  logout: () => http('/auth/logout', { method: 'POST' }),
+  // Full-page redirect to Google's consent screen (handled by the backend).
+  googleLoginUrl: () => `${BASE}/auth/google`,
 };

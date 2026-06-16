@@ -1,0 +1,232 @@
+/* ---- Chat layout ---- */
+.chat {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--white);
+}
+.chat__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--line);
+}
+.chat__link {
+  font-size: 13px;
+  color: var(--gray-500);
+  text-decoration: none;
+}
+.chat__link:hover {
+  color: var(--black);
+}
+
+.chat__scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+.chat__thread {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 32px 20px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.chat__empty {
+  text-align: center;
+  margin: 12vh 0;
+}
+.chat__empty h1 {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  margin: 0 0 10px;
+}
+
+/* ---- Messages ---- */
+.msg {
+  display: flex;
+}
+.msg--user {
+  justify-content: flex-end;
+}
+.msg--bot {
+  justify-content: flex-start;
+}
+.bubble {
+  max-width: 80%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.bubble--bot {
+  background: var(--gray-50);
+  border-color: var(--gray-100);
+}
+.msg--user .bubble {
+  background: var(--black);
+  color: var(--white);
+  border-color: var(--black);
+}
+.bubble__prompt {
+  margin: 0;
+}
+.bubble__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tag {
+  font-size: 11px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  opacity: 0.7;
+}
+.bubble__lyrics {
+  margin: 10px 0 0;
+  white-space: pre-wrap;
+  font-family: inherit;
+  font-size: 13px;
+  opacity: 0.85;
+}
+.small {
+  font-size: 12px;
+}
+
+/* ---- Track (assistant audio) ---- */
+.track {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.track__dl {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--gray-500);
+}
+.track__dl:hover {
+  color: var(--black);
+}
+
+/* ---- Composer ---- */
+.composer {
+  border-top: 1px solid var(--line);
+  padding: 14px 20px 22px;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+.composer__advanced {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--gray-50);
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--gray-500);
+}
+.field input,
+.field textarea,
+.composer__opts select {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--black);
+  background: var(--white);
+  outline: none;
+  resize: vertical;
+}
+.composer__opts {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--black);
+}
+
+.composer__row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  border: 1px solid var(--gray-300);
+  border-radius: 16px;
+  padding: 8px 10px;
+  transition: border-color 0.2s var(--ease);
+}
+.composer__row:focus-within {
+  border-color: var(--black);
+}
+.composer__toggle {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--gray-500);
+  flex: none;
+}
+.composer__toggle:hover {
+  color: var(--black);
+  border-color: var(--gray-300);
+}
+.composer__input {
+  flex: 1;
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--black);
+  background: transparent;
+  max-height: 160px;
+  padding: 6px 2px;
+}
+.composer__input::placeholder {
+  color: var(--gray-400);
+}
+.composer__send {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: none;
+  background: var(--black);
+  display: grid;
+  place-items: center;
+  flex: none;
+  transition: opacity 0.2s var(--ease);
+}
+.composer__send:hover {
+  opacity: 0.82;
+}
+.composer__send-icon {
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 9px solid var(--white);
+  margin-left: 3px;
+}

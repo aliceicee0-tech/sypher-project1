@@ -1,0 +1,11 @@
+{
+  "name": "musiblock",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimalist node-based music creation app powered by the Treblo API.",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "install:all": "npm --prefix backend install && npm --prefix frontend install"
+  }
+}

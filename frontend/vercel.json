@@ -5,7 +5,6 @@
   "framework": "vite",
   "rewrites": [
     {
-      "description": "SPA fallback: all unknown routes serve index.html so React Router can handle them.",
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }

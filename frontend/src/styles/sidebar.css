@@ -20,6 +20,17 @@
   to { opacity: 1; transform: none; }
 }
 
+/* ---- Mobile drawer affordances (hidden on desktop) ----
+   The hamburger (.side__toggle) and the tap-to-close scrim
+   (.side__scrim) are only used on small screens, so they're
+   display:none by default and revealed in responsive.css. */
+.side__toggle {
+  display: none;
+}
+.side__scrim {
+  display: none;
+}
+
 /* ---- The wide, resizable sidebar ---- */
 .side {
   flex: none;

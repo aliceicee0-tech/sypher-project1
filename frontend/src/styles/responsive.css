@@ -66,13 +66,72 @@
 
 /* ============================================================
    Mobile (<= 768px)
-   - Sidebar becomes an off-canvas overlay (collapsed by the JS,
-     we just cap width and lift it above content).
+   - Sidebar becomes an off-canvas drawer: hidden by default, opened
+     via the .side__toggle hamburger, closed by tapping a link or
+     the .side__scrim backdrop.
    - Mini-player drops the waveform row; keeps transport + title.
    - History / Account become single-column with tighter padding.
    ============================================================ */
 @media (max-width: 768px) {
-  /* Sidebar: overlay above content instead of squeezing the main area */
+  /* Hamburger button — only visible on mobile. */
+  .side__toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 70; /* above the drawer (60) so it stays tappable while open */
+    width: 42px;
+    height: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius);
+    background: var(--glass-bg, rgba(18, 18, 18, 0.75));
+    backdrop-filter: saturate(180%) blur(var(--glass-blur, 12px));
+    -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur, 12px));
+    cursor: pointer;
+    transition: background 0.18s var(--ease);
+  }
+  .side__toggle:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+  .side__toggle-bar {
+    width: 20px;
+    height: 2px;
+    background: var(--foreground, #fff);
+    border-radius: 2px;
+    transition: transform 0.22s var(--ease), opacity 0.18s var(--ease);
+  }
+  /* Turn the bars into an "X" when open. */
+  .side__toggle[aria-expanded='true'] .side__toggle-bar:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+  }
+  .side__toggle[aria-expanded='true'] .side__toggle-bar:nth-child(2) {
+    opacity: 0;
+  }
+  .side__toggle[aria-expanded='true'] .side__toggle-bar:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+  }
+
+  /* Backdrop scrim behind the drawer. */
+  .side__scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.55);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s var(--ease), visibility 0.25s var(--ease);
+  }
+  .side__scrim--open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  /* Drawer: slides in from the left when .side--open. */
   .side {
     position: fixed;
     top: 0;
@@ -81,6 +140,11 @@
     width: min(280px, 84vw) !important;
     z-index: 60;
     box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+    transform: translateX(-100%);
+    transition: transform 0.28s var(--ease-out);
+  }
+  .side--open {
+    transform: translateX(0);
   }
   /* Hide the drag handle on touch — resizing makes no sense here */
   .side__resize {
@@ -95,6 +159,10 @@
   .chat__thread {
     padding-left: 16px;
     padding-right: 16px;
+  }
+  .chat__bar {
+    /* Leave room for the hamburger so the title/quota don't sit under it. */
+    padding-left: 64px;
   }
   .chat__empty {
     margin: 6vh 0;

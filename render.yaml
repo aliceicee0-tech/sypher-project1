@@ -18,7 +18,13 @@ services:
     plan: free
     region: frankfurt        # EU; change to oregon if your users are US-side
     rootDir: backend
-    buildCommand: npm ci --omit=dev
+    # npm install (not `npm ci`): the lockfile contains platform-specific
+    # optional native deps (vitest/rolldown → @emnapi/*, @rolldown/binding-*)
+    # that resolve differently per OS/Node version. `npm ci` rejects the
+    # build when the lockfile (generated on one platform) doesn't match the
+    # exact versions npm wants on the build platform. `npm install` re-resolves
+    # those optional deps for the current platform instead of failing.
+    buildCommand: npm install --omit=dev
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { startGeneration, getGenerationStatus } from '../services/trebloClient.js';
 import { rateLimit } from '../middleware/rateLimit.js';
-import { addGeneration, getGenerationRecord } from '../store/generations.js';
+import { addGeneration, getGenerationRecord, updateGeneration } from '../store/generations.js';
 import { authRequired } from '../auth/jwt.js';
 import { requireActive } from '../middleware/requireActive.js';
 import { config } from '../config.js';
@@ -83,7 +83,7 @@ router.post('/', generateLimiter, async (req, res) => {
 
     // Record this generation in the history store so the history page can list
     // it immediately (status updates as the client polls).
-    addGeneration({
+    await addGeneration({
       jobId: job.jobId,
       prompt,
       style_tags,
@@ -107,14 +107,17 @@ router.post('/', generateLimiter, async (req, res) => {
 router.get('/:jobId', async (req, res) => {
   try {
     // Only the owner may poll their own job.
-    const rec = getGenerationRecord(req.params.jobId);
+    const rec = await getGenerationRecord(req.params.jobId);
     if (!rec || rec.owner !== req.user.uid) {
       return res.status(404).json({ error: 'not found' });
     }
     const status = await getGenerationStatus(req.params.jobId);
     if (status.status !== rec.status) {
-      rec.status = status.status;
-      if (status.audioUrl) rec.audioUrl = status.audioUrl;
+      // Persist the transition (and the final audio URL) so the history page
+      // reflects the up-to-date status across backend restarts.
+      const patch = { status: status.status };
+      if (status.audioUrl) patch.audioUrl = status.audioUrl;
+      await updateGeneration(req.params.jobId, patch);
     }
     res.json(status);
   } catch (err) {

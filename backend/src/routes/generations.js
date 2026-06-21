@@ -8,8 +8,13 @@ const router = Router();
 router.use(authRequired);
 
 // GET /api/generations -> list the caller's generation history (newest first)
-router.get('/', (req, res) => {
-  res.json(listGenerationsByOwner(req.user.uid));
+router.get('/', async (req, res) => {
+  try {
+    res.json(await listGenerationsByOwner(req.user.uid));
+  } catch (err) {
+    console.error('[generations] list failed:', err.message);
+    res.status(500).json({ error: 'could not load history' });
+  }
 });
 
 export default router;

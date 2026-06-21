@@ -287,6 +287,11 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+.miniplayer__err {
+  font-size: 11px;
+  margin-top: 4px;
+  color: var(--warning, #ffb703);
+}
 .miniplayer__controls {
   display: flex;
   align-items: center;

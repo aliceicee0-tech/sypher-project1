@@ -38,12 +38,22 @@ export function PlayerProvider({ children }) {
   if (audioRef.current === null && typeof Audio !== 'undefined') {
     audioRef.current = new Audio();
     audioRef.current.preload = 'metadata';
+    // Critical on iOS Safari / mobile browsers: without playsInline the OS
+    // tries to take over with the fullscreen media player (which can fail or
+    // play silently inside in-app browsers). Keeping it inline lets our own
+    // controls drive playback.
+    audioRef.current.playsInline = true;
   }
 
   const [current, setCurrent] = useState(null); // the playing track record
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  // Last play() error, surfaced via the context so the UI can show it.
+  // Mobile browsers reject play() for many reasons (autoplay policy, race
+  // between src/play, codec, ...) and the previous code swallowed them with
+  // .catch(() => {}) — leaving the user with "player advances but no sound".
+  const [playError, setPlayError] = useState(null);
 
   // Volume: persisted to localStorage, default 0.8
   const [volume, setVolumeState] = useState(() => {
@@ -88,6 +98,21 @@ export function PlayerProvider({ children }) {
   const loopRef = useRef(loop);
   loopRef.current = loop;
 
+  // Centralized play() that surfaces the real reason when it fails. Mobile
+  // browsers reject play() silently otherwise, and the UI would happily show
+  // "playing" while no audio comes out. We set preload='auto' (iOS won't fetch
+  // the media under 'metadata' in low-power mode) and report the DOMException.
+  const startPlayback = useCallback((el) => {
+    if (!el) return Promise.resolve();
+    setPlayError(null);
+    el.preload = 'auto';
+    el.play().catch((err) => {
+      setPlayError(err?.name || 'play failed');
+      // Keep the UI honest: if play() was rejected, we're NOT actually playing.
+      setPlaying(false);
+    });
+  }, []);
+
   const loadAt = useCallback((i) => {
     const el = audioRef.current;
     const track = queueRef.current[i];
@@ -95,11 +120,21 @@ export function PlayerProvider({ children }) {
     indexRef.current = i;
     setIndex(i);
     setCurrent(track);
+    setPlayError(null);
     el.src = track.audio_url;
+    el.preload = 'auto'; // iOS needs the media to start loading before play()
     el.currentTime = 0;
     setCurrentTime(0);
-    el.play().catch(() => {});
-  }, []);
+    // Mobile race condition guard: if the media isn't ready yet, calling
+    // play() immediately can leave the element in a silent "playing" state
+    // (time advances, no audio). Wait for canplay before starting.
+    const safePlay = () => startPlayback(el);
+    if (el.readyState >= 2) {
+      safePlay();
+    } else {
+      el.addEventListener('canplay', safePlay, { once: true });
+    }
+  }, [startPlayback]);
 
   useEffect(() => {
     const el = audioRef.current;
@@ -112,7 +147,7 @@ export function PlayerProvider({ children }) {
       if (currentLoop === 'one') {
         // Repeat the same track
         el.currentTime = 0;
-        el.play().catch(() => {});
+        startPlayback(el);
         return;
       }
       // Auto-advance to the next track when one finishes.
@@ -140,7 +175,7 @@ export function PlayerProvider({ children }) {
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
     };
-  }, [loadAt]);
+  }, [loadAt, startPlayback]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -154,7 +189,7 @@ export function PlayerProvider({ children }) {
         case ' ': // Space = play/pause
           e.preventDefault();
           if (audioRef.current?.src) {
-            if (audioRef.current.paused) audioRef.current.play().catch(() => {});
+            if (audioRef.current.paused) startPlayback(audioRef.current);
             else audioRef.current.pause();
           }
           break;
@@ -194,7 +229,7 @@ export function PlayerProvider({ children }) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [loadAt]);
+  }, [loadAt, startPlayback]);
 
   // Replace the queue with a list and start at `start`.
   const playList = useCallback(
@@ -218,7 +253,7 @@ export function PlayerProvider({ children }) {
       const t = normalize(track);
       const el = audioRef.current;
       if (current && current.id === t.id) {
-        if (el.paused) el.play().catch(() => {});
+        if (el.paused) startPlayback(el);
         else el.pause();
         return;
       }
@@ -231,15 +266,15 @@ export function PlayerProvider({ children }) {
       setQueueVersion((v) => v + 1);
       loadAt(queueRef.current.length - 1);
     },
-    [current, loadAt]
+    [current, loadAt, startPlayback]
   );
 
   const toggle = useCallback(() => {
     const el = audioRef.current;
     if (!el || !el.src) return;
-    if (el.paused) el.play().catch(() => {});
+    if (el.paused) startPlayback(el);
     else el.pause();
-  }, []);
+  }, [startPlayback]);
 
   const seekToFraction = useCallback((fraction) => {
     const el = audioRef.current;
@@ -300,6 +335,9 @@ export function PlayerProvider({ children }) {
     // Loop
     loop, // 'off' | 'one' | 'all'
     cycleLoop,
+    // Surfaced play() failure (e.g. 'NotAllowedError' on mobile autoplay).
+    // The UI can read this to tell the user why there's no sound.
+    playError,
   };
 
   return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;

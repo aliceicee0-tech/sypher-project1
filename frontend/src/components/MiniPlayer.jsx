@@ -29,6 +29,7 @@ export default function MiniPlayer() {
     setVolume,
     loop,
     cycleLoop,
+    playError,
   } = usePlayer();
 
   const [showVolume, setShowVolume] = useState(false);
@@ -44,6 +45,10 @@ export default function MiniPlayer() {
       <div className="miniplayer__info">
         <div className="miniplayer__title">{current.title || 'Untitled'}</div>
         {current.subtitle && <div className="miniplayer__meta">{current.subtitle}</div>}
+        {/* Surface the real play() failure on mobile (e.g. autoplay blocked). */}
+        {playError && (
+          <div className="miniplayer__err">No audio: {playError}. Tap play again.</div>
+        )}
       </div>
 
       <div className="miniplayer__center">

@@ -120,8 +120,13 @@ async function start() {
 export { start };
 
 // Boot only when launched directly (`node src/server.js`), NOT when imported by
-// tests. pathToFileURL keeps this working on Windows (drive letters / spaces).
-const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === pathToFileURL(import.meta.url).href;
+// tests. Compare the entry-point URL against this module's URL.
+// NOTE: import.meta.url is ALREADY a file:// URL — never wrap it in
+// pathToFileURL (that expects a filesystem path and corrupts a URL by
+// treating it as a relative path). We only normalize process.argv[1] (which
+// is a raw filesystem path that may be relative).
+const isMain =
+  process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url;
 if (isMain) {
   start();
 }

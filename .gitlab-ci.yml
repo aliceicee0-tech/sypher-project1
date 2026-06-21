@@ -1,0 +1,55 @@
+# GitLab CI: run the test suite + emit coverage reports consumed by Code Quality.
+# Triggered on every push. Uses Node 20 (LTS).
+image: node:20
+
+stages:
+  - test
+
+cache:
+  key: ${CI_COMMIT_REF_SLUG}
+  paths:
+    - frontend/.npm-cache/
+    - backend/.npm-cache/
+
+variables:
+  npm_config_cache: "$CI_PROJECT_DIR/.npm-cache"
+
+# Run the backend unit tests with coverage.
+backend:test:
+  stage: test
+  cache:
+    key: backend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - backend/node_modules/
+  script:
+    - npm --prefix backend ci
+    - npm --prefix backend run test:coverage
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: lcov
+        path: backend/coverage/lcov.info
+    paths:
+      - backend/coverage/
+    expire_in: 1 week
+
+# Run the frontend unit tests with coverage.
+frontend:test:
+  stage: test
+  cache:
+    key: frontend-${CI_COMMIT_REF_SLUG}
+    paths:
+      - frontend/node_modules/
+  script:
+    - npm --prefix frontend ci
+    - npm --prefix frontend run test:coverage
+  artifacts:
+    when: always
+    reports:
+      coverage_report:
+        coverage_format: lcov
+        path: frontend/coverage/lcov.info
+    paths:
+      - frontend/coverage/
+    expire_in: 1 week

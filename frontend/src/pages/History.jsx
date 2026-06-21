@@ -16,6 +16,72 @@ import Equalizer from '../components/Equalizer.jsx';
  *
  * Features: search/filter by prompt or tag, play all, copy prompt.
  */
+// Inline SVG icons, extracted so they don't inflate TrackRow's branch count.
+const PauseBarsIcon = () => (
+  <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor">
+    <path d="M1 1.5h2.5v9H1v-9zm5.5 0h2.5v9h-2.5v-9z" />
+  </svg>
+);
+const PlayTriangleIcon = () => (
+  <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" style={{ marginLeft: '1px' }}>
+    <path d="M1 1.5l7.5 4.5L1 10.5V1.5z" />
+  </svg>
+);
+const CheckIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+const CopyIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+const DownloadIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" />
+  </svg>
+);
+
+function formatDateLabel(createdAt) {
+  const when = new Date(createdAt || Date.now());
+  return (
+    when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+    ' · ' +
+    when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+  );
+}
+
+function useCopyPrompt(prompt) {
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    if (!prompt) return;
+    try {
+      await navigator.clipboard?.writeText(prompt);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    } catch { /* clipboard may not be available */ }
+  }
+  return { copied, copy };
+}
+
+function CopyPromptButton({ prompt }) {
+  const { copied, copy } = useCopyPrompt(prompt);
+  if (!prompt) return null;
+  return (
+    <button
+      className="card-action"
+      onClick={copy}
+      title="Copy prompt"
+      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+    >
+      {copied ? <CheckIcon /> : <CopyIcon />}
+      {copied ? 'Copied' : 'Copy prompt'}
+    </button>
+  );
+}
+
 function TrackRow({ track, onPlay }) {
   const { prompt, style_tags, audioUrl, status, createdAt, duration } = track;
   const player = usePlayer();
@@ -26,27 +92,11 @@ function TrackRow({ track, onPlay }) {
   const progress = isCurrent ? player.progress : 0;
   const currentTime = isCurrent ? player.currentTime : 0;
   const ready = status === 'ready' && audioUrl;
-
-  const when = new Date(createdAt || Date.now());
-  const dateLabel =
-    when.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
-    ' · ' +
-    when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
-
-  const [copied, setCopied] = useState(false);
+  const dateLabel = formatDateLabel(createdAt);
 
   function handlePlay() {
     if (!ready) return;
     onPlay();
-  }
-
-  async function copyPrompt() {
-    if (!prompt) return;
-    try {
-      await navigator.clipboard?.writeText(prompt);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1800);
-    } catch { /* clipboard may not be available */ }
   }
 
   return (
@@ -57,19 +107,7 @@ function TrackRow({ track, onPlay }) {
         disabled={!ready}
         aria-label={playing ? 'Pause' : 'Play'}
       >
-        {ready ? (
-          playing ? (
-            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor">
-              <path d="M1 1.5h2.5v9H1v-9zm5.5 0h2.5v9h-2.5v-9z" />
-            </svg>
-          ) : (
-            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" style={{ marginLeft: '1px' }}>
-              <path d="M1 1.5l7.5 4.5L1 10.5V1.5z" />
-            </svg>
-          )
-        ) : (
-          <Equalizer bars={3} />
-        )}
+        {ready ? (playing ? <PauseBarsIcon /> : <PlayTriangleIcon />) : <Equalizer bars={3} />}
       </button>
 
       <div className="history__info">
@@ -105,36 +143,10 @@ function TrackRow({ track, onPlay }) {
 
       {/* Copy prompt + download actions */}
       <div className="history__actions">
-        {prompt && (
-          <button
-            className="card-action"
-            onClick={copyPrompt}
-            title="Copy prompt"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-          >
-            {copied ? (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-                Copied
-              </>
-            ) : (
-              <>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
-                Copy prompt
-              </>
-            )}
-          </button>
-        )}
+        <CopyPromptButton prompt={prompt} />
         {ready && (
           <a className="track__dl" href={audioUrl} download title="Download" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-            </svg>
+            <DownloadIcon />
           </a>
         )}
       </div>

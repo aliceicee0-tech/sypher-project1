@@ -98,83 +98,24 @@ router.get('/google/callback', callbackLimiter, async (req, res) => {
   clearStateCookie(res);
 
   try {
-    const { tokens } = await client.getToken(code);
-    const ticket = await client.verifyIdToken({
-      idToken: tokens.id_token,
-      audience: config.google.clientId,
-    });
-    const p = ticket.getPayload(); // { sub, email, name, picture, email_verified, ... }
-
-    // 1) Require a verified Google account. Unverified Google accounts are the
-    //    cheapest farming vector; reject them outright.
-    if (p.email_verified !== true) {
-      return redirectToFrontend(res, { error: 'oauth_email_not_verified' });
-    }
-
-    const profile = {
-      google_id: p.sub,
-      email: p.email,
-      name: p.name || '',
-      avatar_url: p.picture || '',
-      email_verified: true,
-    };
+    const profile = await exchangeAndVerify(res, code);
+    if (!profile) return; // exchangeAndVerify already redirected
 
     const deviceId = readDeviceId(req);
     const ip = req.ip || 'unknown';
 
-    // 2) Is this a NEW signup or a returning user? The abuse gate only applies
-    //    to NEW accounts — a returning user logging in is never "farming".
-    let existing = null;
-    if (isDbReady()) {
-      existing = await User.findOne({ google_id: profile.google_id }).lean();
-    } else {
-      existing = userMemory.get(profile.google_id) || null;
-    }
+    const existing = await findExistingUser(profile.google_id);
 
+    // New account: run the anti-farming + capacity gates before creating.
     if (!existing) {
-      // 3) Anti-farming gate: cap signups per (device_id, ip) + ip-only net.
-      const decision = await checkSignupAllowed(deviceId, ip);
-      if (!decision.allowed) {
-        console.warn(
-          `[auth] signup blocked (${decision.reason}): device=${deviceId}, ip=${ip}, deviceIp=${decision.deviceIp}, ipOnly=${decision.ipOnly}`
-        );
-        return redirectToFrontend(res, { error: 'signup_blocked' });
-      }
-
-      // 4) Beta capacity cap: refuse new signups once MAX_USERS is reached.
-      //    Returning users always pass (they already have an account). Works in
-      //    Mongo mode (countDocuments) and in-memory fallback mode (Map size).
-      if (config.maxUsers > 0) {
-        const userCount = isDbReady()
-          ? await User.countDocuments({})
-          : userMemory.size;
-        if (userCount >= config.maxUsers) {
-          console.warn(
-            `[auth] signup closed: ${userCount}/${config.maxUsers} users reached`
-          );
-          return redirectToFrontend(res, { error: 'signup_closed' });
-        }
-      }
+      const block = await signupBlockReason({ deviceId, ip });
+      if (block) return redirectToFrontend(res, { error: block });
     }
 
-    let user;
-    const signupAttribution = { signup_ip: ip, signup_device: deviceId || '' };
-    if (isDbReady()) {
-      user = await User.findOneAndUpdate(
-        { google_id: profile.google_id },
-        // On first creation we set the attribution + profile; on a returning
-        // login we only refresh the mutable profile fields (not overwrite the
-        // original signup attribution, which is historical).
-        { $set: { ...profile, ...(existing ? {} : signupAttribution) } },
-        { new: true, upsert: true }
-      ).lean();
-    } else {
-      user = { _id: profile.google_id, ...profile, ...(existing ? {} : signupAttribution) };
-      userMemory.set(profile.google_id, user);
-    }
+    const user = await upsertUser(profile, existing, { ip, deviceId });
 
-    // 4) Log the signup AFTER the upsert succeeds, so a blocked attempt is
-    //    never counted. Only for brand-new accounts.
+    // Log the signup only after the upsert succeeds, so a blocked attempt is
+    // never counted. Brand-new accounts only.
     if (!existing) {
       await recordSignup({
         deviceId,
@@ -184,27 +125,102 @@ router.get('/google/callback', callbackLimiter, async (req, res) => {
       });
     }
 
-    const token = signToken({
-      uid: String(user._id),
-      email: user.email,
-      name: user.name,
-      avatar_url: user.avatar_url,
-      status: user.status || 'active',
-    });
-    setAuthCookie(res, token);
-
-    // In production the frontend (Vercel) and backend (Render) are on different
-    // origins, so a cross-site cookie may be dropped by the browser. To make
-    // login reliable we ALSO pass the token via the redirect URL; the frontend
-    // stores it in localStorage and sends it as a Bearer header. The cookie
-    // still works for same-origin / dev.
-    return redirectToFrontend(res, config.isProduction ? { token } : {});
+    issueSession(res, user);
+    return redirectToFrontend(res, config.isProduction ? { token: res.locals.token } : {});
   } catch (err) {
     console.error('[auth] Google callback failed:', err.message);
     // Never send the raw error to the browser — it can leak internal details.
     return redirectToFrontend(res, { error: 'oauth_failed' });
   }
 });
+
+// --- OAuth callback helpers (extracted to keep the route handler readable) ---
+
+// Exchange the auth code for tokens and verify the id token; returns a clean
+// profile or null (after redirecting on a verified rejection / failure).
+async function exchangeAndVerify(res, code) {
+  const { tokens } = await client.getToken(code);
+  const ticket = await client.verifyIdToken({
+    idToken: tokens.id_token,
+    audience: config.google.clientId,
+  });
+  const p = ticket.getPayload(); // { sub, email, name, picture, email_verified, ... }
+
+  // Require a verified Google account. Unverified accounts are the cheapest
+  // farming vector; reject them outright.
+  if (p.email_verified !== true) {
+    redirectToFrontend(res, { error: 'oauth_email_not_verified' });
+    return null;
+  }
+  return {
+    google_id: p.sub,
+    email: p.email,
+    name: p.name || '',
+    avatar_url: p.picture || '',
+    email_verified: true,
+  };
+}
+
+// Find an existing user by google_id in Mongo, or the in-memory fallback.
+async function findExistingUser(googleId) {
+  if (isDbReady()) {
+    return User.findOne({ google_id: googleId }).lean();
+  }
+  return userMemory.get(googleId) || null;
+}
+
+// Returns a block reason string ('signup_blocked' | 'signup_closed') for a new
+// signup, or null if the signup is allowed. Two independent gates:
+//   - per (device_id, ip) + ip-only signup cap (anti-farming)
+//   - global MAX_USERS capacity cap (closed beta)
+async function signupBlockReason({ deviceId, ip }) {
+  const decision = await checkSignupAllowed(deviceId, ip);
+  if (!decision.allowed) {
+    console.warn(
+      `[auth] signup blocked (${decision.reason}): device=${deviceId}, ip=${ip}, deviceIp=${decision.deviceIp}, ipOnly=${decision.ipOnly}`
+    );
+    return 'signup_blocked';
+  }
+  if (config.maxUsers > 0) {
+    const userCount = isDbReady() ? await User.countDocuments({}) : userMemory.size;
+    if (userCount >= config.maxUsers) {
+      console.warn(`[auth] signup closed: ${userCount}/${config.maxUsers} users reached`);
+      return 'signup_closed';
+    }
+  }
+  return null;
+}
+
+// Upsert the user. On first creation we set the attribution + profile; on a
+// returning login we only refresh the mutable profile fields (the original
+// signup attribution is historical and must not be overwritten).
+async function upsertUser(profile, existing, { ip, deviceId }) {
+  const signupAttribution = { signup_ip: ip, signup_device: deviceId || '' };
+  if (isDbReady()) {
+    return User.findOneAndUpdate(
+      { google_id: profile.google_id },
+      { $set: { ...profile, ...(existing ? {} : signupAttribution) } },
+      { new: true, upsert: true }
+    ).lean();
+  }
+  const user = { _id: profile.google_id, ...profile, ...(existing ? {} : signupAttribution) };
+  userMemory.set(profile.google_id, user);
+  return user;
+}
+
+// Sign the JWT, set the auth cookie, and stash the token so the route handler
+// can decide whether to also expose it via the redirect URL (prod only).
+function issueSession(res, user) {
+  const token = signToken({
+    uid: String(user._id),
+    email: user.email,
+    name: user.name,
+    avatar_url: user.avatar_url,
+    status: user.status || 'active',
+  });
+  setAuthCookie(res, token);
+  res.locals.token = token;
+}
 
 // Redirect back to the frontend, optionally surfacing a short error code.
 function redirectToFrontend(res, query = {}) {

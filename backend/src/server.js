@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
+import { pathToFileURL } from 'node:url';
 import { config, isMockMode } from './config.js';
 import { connectDb } from './db.js';
 import { isDbReady } from './db.js';
@@ -18,7 +19,7 @@ import { ordersRouter } from './routes/orders.js';
 import { plansRouter } from './routes/plans.js';
 import { adminRouter } from './routes/admin.js';
 
-const app = express();
+export const app = express();
 
 // Behind a proxy (Render/Heroku/Nginx): trust the first hop so req.ip and the
 // X-Forwarded-* headers (used by rate limiting and secure cookies) are honored.
@@ -116,4 +117,11 @@ async function start() {
   });
 }
 
-start();
+export { start };
+
+// Boot only when launched directly (`node src/server.js`), NOT when imported by
+// tests. pathToFileURL keeps this working on Windows (drive letters / spaces).
+const isMain = process.argv[1] && pathToFileURL(process.argv[1]).href === pathToFileURL(import.meta.url).href;
+if (isMain) {
+  start();
+}

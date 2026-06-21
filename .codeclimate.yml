@@ -1,0 +1,27 @@
+# Code Climate / GitLab Code Quality config.
+#
+# The `low-test-coverage` rule flags any source file whose coverage report is 0%.
+# This file points the coverage plugin at the lcov.info reports produced by the
+# CI `test` jobs (see .gitlab-ci.yml), so every file exercised by the Vitest
+# suites counts as covered and the "N files without tests" finding clears.
+version: "2"
+
+plugins:
+  coverage:
+    enabled: true
+    # lcov reports live under coverage/lcov.info in each package.
+    patterns:
+      - "backend/coverage/lcov.info"
+      - "frontend/coverage/lcov.info"
+
+# Don't analyze vendored/generated code.
+exclude_patterns:
+  - "node_modules/"
+  - "**/node_modules/"
+  - "dist/"
+  - "**/dist/"
+  - "build/"
+  - "coverage/"
+  - "**/*.test.js"
+  - "**/*.spec.js"
+  - "frontend/src/test/"

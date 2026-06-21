@@ -193,7 +193,12 @@ router.get('/google/callback', callbackLimiter, async (req, res) => {
     });
     setAuthCookie(res, token);
 
-    return redirectToFrontend(res);
+    // In production the frontend (Vercel) and backend (Render) are on different
+    // origins, so a cross-site cookie may be dropped by the browser. To make
+    // login reliable we ALSO pass the token via the redirect URL; the frontend
+    // stores it in localStorage and sends it as a Bearer header. The cookie
+    // still works for same-origin / dev.
+    return redirectToFrontend(res, config.isProduction ? { token } : {});
   } catch (err) {
     console.error('[auth] Google callback failed:', err.message);
     // Never send the raw error to the browser — it can leak internal details.

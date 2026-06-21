@@ -1,15 +1,30 @@
 // Thin API client. All Treblo calls go through our backend proxy.
 //
 // In development, Vite proxies "/api/*" to the local backend on :4000, so BASE
-// stays as "/api" (same-origin). In production the frontend (Vercel) and the
-// backend (Render) live on different origins, so we point BASE at the backend's
-// public URL via VITE_API_URL — keeping credentials so the auth cookie travels.
+// stays as "/api" (same-origin) and a httpOnly cookie carries the auth session.
+// In production the frontend (Vercel) and backend (Render) live on different
+// origins, so browsers block third-party cookies. We therefore store the JWT
+// in localStorage (received via ?token= after the OAuth redirect) and send it
+// as a Bearer Authorization header on every request.
 const BASE = import.meta.env.VITE_API_URL || '/api';
+const TOKEN_KEY = 'melodia_token';
+
+export function getAuthToken() {
+  return localStorage.getItem(TOKEN_KEY) || '';
+}
+export function setAuthToken(token) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
 
 async function http(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json' };
+  const token = getAuthToken();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include', // send the auth cookie with every request
+    headers,
+    credentials: 'include', // send the auth cookie with every request (dev)
     ...options,
   });
   // Session expired / missing — bounce to the login screen (but never interrupt

@@ -32,9 +32,21 @@ export function clearAuthCookie(res) {
   res.clearCookie(COOKIE_NAME, { ...cookieOptions(0), maxAge: undefined });
 }
 
-// Express middleware: attaches req.user when a valid token cookie is present.
+// Express middleware: attaches req.user when a valid token is present.
+//
+// The token is read from EITHER source, so the app works in two modes:
+//   - Same-origin (dev via Vite proxy): a httpOnly cookie carries the token.
+//   - Cross-origin (prod: Vercel + Render): browsers block third-party
+//     cookies, so the frontend stores the token in localStorage and sends it
+//     as a Bearer Authorization header on every request. This is the only
+//     reliable way to stay logged in across two different domains.
 export function authOptional(req, _res, next) {
-  const token = req.cookies?.[COOKIE_NAME];
+  // 1) Bearer token from the Authorization header (prod cross-origin).
+  const authHeader = req.headers.authorization || '';
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  // 2) httpOnly cookie (same-origin / dev).
+  const cookieToken = req.cookies?.[COOKIE_NAME];
+  const token = bearer || cookieToken;
   if (token) {
     try {
       req.user = jwt.verify(token, config.jwtSecret);

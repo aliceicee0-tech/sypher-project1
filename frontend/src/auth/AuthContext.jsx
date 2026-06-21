@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { api } from '../api.js';
+import { api, getAuthToken, setAuthToken } from '../api.js';
 
 const AuthContext = createContext({
   user: null,
@@ -31,6 +31,19 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    // Capture the token passed via ?token=... after the OAuth redirect (prod).
+    // The backend appends it when cross-origin cookies are unreliable. We store
+    // it, then strip it from the URL so it doesn't linger in the address bar /
+    // browser history.
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token) {
+      setAuthToken(token);
+      params.delete('token');
+      const clean = params.toString();
+      const newUrl = window.location.pathname + (clean ? `?${clean}` : '');
+      window.history.replaceState({}, '', newUrl);
+    }
     refresh();
   }, [refresh]);
 
@@ -40,7 +53,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await api.logout();
+    try {
+      await api.logout();
+    } catch {
+      // ignore — we clear locally anyway
+    }
+    setAuthToken(null);
     setUser(null);
     setIsAdmin(false);
     // With auth now required everywhere, send the user to the login screen.

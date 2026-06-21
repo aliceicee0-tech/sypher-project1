@@ -5,6 +5,7 @@ const AuthContext = createContext({
   user: null,
   loading: true,
   googleConfigured: false,
+  isAdmin: false,
   login: () => {},
   logout: async () => {},
 });
@@ -12,15 +13,18 @@ const AuthContext = createContext({
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [googleConfigured, setGoogleConfigured] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
     try {
-      const { user, googleConfigured } = await api.me();
+      const { user, googleConfigured, isAdmin } = await api.me();
       setUser(user);
       setGoogleConfigured(googleConfigured);
+      setIsAdmin(Boolean(isAdmin));
     } catch {
       setUser(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
@@ -38,10 +42,15 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     await api.logout();
     setUser(null);
+    setIsAdmin(false);
+    // With auth now required everywhere, send the user to the login screen.
+    if (window.location.pathname !== '/login') {
+      window.location.assign('/login');
+    }
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, googleConfigured, login, logout }}>
+    <AuthContext.Provider value={{ user, loading, googleConfigured, isAdmin, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

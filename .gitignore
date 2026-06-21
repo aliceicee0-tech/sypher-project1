@@ -6,6 +6,10 @@ node_modules/
 .env.local
 *.local
 
+# Treblo API key pool (one key per line — never commit)
+.treblo-keys
+treblo-keys.txt
+
 # Build output
 dist/
 build/

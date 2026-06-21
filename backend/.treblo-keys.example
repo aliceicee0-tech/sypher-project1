@@ -1,0 +1,21 @@
+# Treblo API key pool — one key per line.
+#
+# Rename this file to `.treblo-keys` and fill it with your Treblo account keys
+# (one Treblo account per line). Lines starting with '#' and blank lines are
+# ignored, so you may group/annotate your accounts:
+#
+#   # ---- batch 1 ----
+#   sksonauto_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+#   sksonauto_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+#   # ---- batch 2 ----
+#   sksonauto_cccccccccccccccccccccccccccccccc
+#
+# Then point the backend at it:
+#
+#   TREBLO_KEYS_FILE=.treblo-keys      (in backend/.env)
+#
+# The backend dedupes and loads every key here into the multi-key failover
+# pool. When a generation fails on one key (out of credits, 401, 5xx, timeout),
+# the next key is tried automatically (see src/providers/keys.js).
+#
+# IMPORTANT: never commit the real `.treblo-keys` file. It is git-ignored.

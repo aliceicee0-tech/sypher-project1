@@ -1,81 +1,47 @@
+/* ============================================================
+   C H A T  —  layout, messages, composer, quota
+   Monochrome "Black & White Chic": pure white as the only accent,
+   translucent white overlays, deep neutral grays. No color hues.
+   ============================================================ */
+
 /* ---- Chat layout ---- */
 .chat {
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: var(--white);
+  flex: 1;
+  min-height: 0;
+  background: var(--background);
+}
+.chat__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--foreground-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 .chat__bar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   padding: 14px 22px;
   border-bottom: 1px solid var(--line);
+  background: var(--glass-bg);
+  backdrop-filter: saturate(180%) blur(var(--glass-blur));
+  -webkit-backdrop-filter: saturate(180%) blur(var(--glass-blur));
 }
 .chat__link {
   font-size: 13px;
-  color: var(--gray-500);
+  color: var(--foreground-soft);
   text-decoration: none;
+  transition: color 0.2s var(--ease);
 }
 .chat__link:hover {
-  color: var(--black);
-}
-.chat__bar-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-/* ---- Auth controls ---- */
-.google-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--gray-300);
-  background: var(--white);
-  color: var(--black);
-  padding: 7px 14px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
-}
-.google-btn:hover:not(:disabled) {
-  border-color: var(--black);
-  background: var(--gray-50);
-}
-.google-btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.auth {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-}
-.auth__avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  object-fit: cover;
-}
-.auth__name {
-  font-size: 13px;
-  color: var(--black);
-  max-width: 140px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.auth__logout {
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  color: var(--gray-400);
-}
-.auth__logout:hover {
-  color: var(--black);
+  color: var(--brand);
 }
 
 .chat__scroll {
@@ -96,10 +62,58 @@
   margin: 12vh 0;
 }
 .chat__empty h1 {
-  font-size: 30px;
-  font-weight: 600;
-  letter-spacing: -0.03em;
-  margin: 0 0 10px;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin: 0 0 12px;
+  background: linear-gradient(135deg, #ffffff 30%, var(--foreground-soft) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ---- Empty-state hero: animated sound bars behind the headline ---- */
+.chat__empty-wave {
+  position: relative;
+  width: 220px;
+  height: 90px;
+  margin: 0 auto 26px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  opacity: 0.95;
+}
+.chat__empty-wave > span {
+  flex: none;
+  width: 8px;
+  background: linear-gradient(to top, var(--brand) 0%, var(--success) 100%);
+  border-radius: 999px;
+  transform-origin: bottom;
+  animation: chatBar 1.2s var(--ease) infinite alternate;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.15);
+}
+.chat__empty-wave > span:nth-child(1) { height: 40%; animation-delay: 0s; }
+.chat__empty-wave > span:nth-child(2) { height: 75%; animation-delay: 0.15s; }
+.chat__empty-wave > span:nth-child(3) { height: 100%; animation-delay: 0.3s; }
+.chat__empty-wave > span:nth-child(4) { height: 65%; animation-delay: 0.45s; }
+.chat__empty-wave > span:nth-child(5) { height: 50%; animation-delay: 0.6s; }
+@keyframes chatBar {
+  0% { transform: scaleY(0.3); opacity: 0.5; }
+  100% { transform: scaleY(1); opacity: 1; }
+}
+
+.chat__suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 22px;
+  max-width: 640px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* ---- Messages ---- */
@@ -113,21 +127,24 @@
   justify-content: flex-start;
 }
 .bubble {
-  max-width: 80%;
+  max-width: 85%;
   border: 1px solid var(--line);
-  border-radius: 16px;
-  padding: 14px 16px;
-  font-size: 14px;
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  font-size: 14.5px;
   line-height: 1.5;
+  box-shadow: var(--shadow-sm);
 }
 .bubble--bot {
-  background: var(--gray-50);
-  border-color: var(--gray-100);
+  background: var(--card);
+  border-color: var(--border-strong);
 }
 .msg--user .bubble {
-  background: var(--black);
-  color: var(--white);
-  border-color: var(--black);
+  background: var(--brand);
+  color: var(--background);
+  border-color: var(--brand);
+  box-shadow: var(--shadow-md);
+  font-weight: 500;
 }
 .bubble__prompt {
   margin: 0;
@@ -161,94 +178,181 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 280px;
+}
+.track__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+.track__time {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--foreground-muted);
+  font-variant-numeric: tabular-nums;
 }
 .track__dl {
   display: inline-block;
   margin-top: 10px;
   font-size: 12px;
-  color: var(--gray-500);
+  color: var(--foreground-muted);
+  transition: color 0.18s var(--ease);
 }
 .track__dl:hover {
-  color: var(--black);
+  color: var(--foreground);
+}
+.track__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+}
+.track__saved {
+  font-size: 12px;
+  color: var(--foreground-soft);
+}
+.save-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
-/* ---- Composer ---- */
+/* ============================================================
+   Composer
+   ============================================================ */
 .composer {
-  border-top: 1px solid var(--line);
+  position: sticky;
+  bottom: 0;
+  z-index: 9;
+  border-top: 1px solid var(--border);
   padding: 14px 20px 22px;
   max-width: 760px;
   margin: 0 auto;
   width: 100%;
+  background: linear-gradient(180deg, rgba(22, 22, 22, 0) 0%, var(--background) 38%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
+
+/* Empty state: center the composer + hero vertically (like a landing view).
+   When messages exist, the natural sticky-bottom flow takes over. */
+.chat--empty .chat__scroll {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.chat--empty .chat__thread {
+  flex: 1;
+}
+.chat--empty .composer {
+  border-top: none;
+  background: transparent;
+  margin-top: auto;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
 .composer__advanced {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+  gap: 14px;
+  padding: 18px;
   margin-bottom: 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--gray-50);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-md);
 }
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   font-size: 12px;
-  color: var(--gray-500);
+  font-weight: 500;
+  color: var(--foreground-soft);
+}
+.field__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.field__value {
+  font-family: var(--font-mono);
+  color: var(--foreground);
 }
 .field input,
 .field textarea,
 .composer__opts select {
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
   font-family: inherit;
-  font-size: 13px;
-  color: var(--black);
-  background: var(--white);
+  font-size: 13.5px;
+  color: var(--foreground);
+  background: var(--background);
   outline: none;
   resize: vertical;
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.field input:focus,
+.field textarea:focus,
+.composer__opts select:focus {
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 2px var(--ring-soft);
 }
 .composer__opts {
   display: flex;
   align-items: center;
   gap: 22px;
+  flex-wrap: wrap;
 }
 .check {
   display: flex;
   align-items: center;
   gap: 8px;
   font-size: 13px;
-  color: var(--black);
+  color: var(--foreground);
 }
 
 .composer__row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
-  border: 1px solid var(--gray-300);
-  border-radius: 16px;
-  padding: 8px 10px;
-  transition: border-color 0.2s var(--ease);
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 14px;
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 .composer__row:focus-within {
-  border-color: var(--black);
+  border-color: var(--foreground);
+  box-shadow: 0 0 0 2px var(--ring-soft), var(--shadow-md);
 }
 .composer__toggle {
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--white);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
   font-size: 18px;
   line-height: 1;
-  color: var(--gray-500);
+  color: var(--foreground-soft);
   flex: none;
+  display: grid;
+  place-items: center;
+  transition: color 0.2s var(--ease), border-color 0.2s var(--ease),
+    background 0.2s var(--ease), transform 0.2s var(--spring);
 }
 .composer__toggle:hover {
-  color: var(--black);
-  border-color: var(--gray-300);
+  color: var(--foreground);
+  border-color: var(--foreground);
+  background: var(--surface-hover);
+  transform: rotate(90deg);
 }
 .composer__input {
   flex: 1;
@@ -257,33 +361,198 @@
   resize: none;
   font-family: inherit;
   font-size: 15px;
-  color: var(--black);
+  color: var(--foreground);
   background: transparent;
   max-height: 160px;
   padding: 6px 2px;
 }
 .composer__input::placeholder {
-  color: var(--gray-400);
+  color: var(--foreground-muted);
+}
+.composer__input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .composer__send {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
   border: none;
-  background: var(--black);
+  background: var(--brand);
+  color: var(--background);
   display: grid;
   place-items: center;
   flex: none;
-  transition: opacity 0.2s var(--ease);
+  box-shadow: var(--shadow-xs);
+  transition: background 0.2s var(--ease), transform 0.2s var(--spring),
+    box-shadow 0.2s var(--ease);
 }
-.composer__send:hover {
-  opacity: 0.82;
+.composer__send:hover:not(:disabled) {
+  background: var(--brand-hover);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.composer__send:active:not(:disabled) {
+  transform: scale(0.9) translateY(0);
+}
+.composer__send:disabled {
+  background: var(--card-hover);
+  color: var(--foreground-muted);
+  cursor: not-allowed;
 }
 .composer__send-icon {
   width: 0;
   height: 0;
   border-top: 6px solid transparent;
   border-bottom: 6px solid transparent;
-  border-left: 9px solid var(--white);
+  border-left: 9px solid var(--background);
   margin-left: 3px;
+}
+
+/* ---- Quota indicator (inside the composer) ---- */
+.composer__quota {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.composer__quota-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--surface);
+  border-radius: 999px;
+  overflow: hidden;
+  max-width: 120px;
+}
+.composer__quota-fill {
+  height: 100%;
+  background: var(--foreground);
+  border-radius: 999px;
+  transition: width 0.4s var(--ease);
+}
+.composer__limit-msg {
+  font-size: 12.5px;
+  color: var(--foreground-soft);
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+/* ---- Duration presets ---- */
+.composer__duration-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.chip--sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+.composer__genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* ---- Duration range slider (cosmic theme) ---- */
+.composer__duration-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, var(--brand) 0%, rgba(255, 255, 255, 0.1) 0%);
+  border-radius: 999px;
+  outline: none;
+  margin-top: 4px;
+  transition: background 0.1s linear;
+}
+.composer__duration-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--brand);
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5), 0 0 2px rgba(255, 255, 255, 0.3);
+  transition: transform 0.15s var(--spring), box-shadow 0.15s var(--ease);
+}
+.composer__duration-range::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.6), 0 0 4px rgba(255, 255, 255, 0.5);
+}
+.composer__duration-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--brand);
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.5), 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================================
+   Quota badge (header / sidebar / account)
+   ============================================================ */
+.quota {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.quota--block {
+  width: 100%;
+}
+.quota__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.quota__label {
+  font-size: 12px;
+  color: var(--foreground-soft);
+  white-space: nowrap;
+}
+.quota__count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+.quota__bar {
+  height: 4px;
+  background: var(--surface);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.quota__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--foreground);
+  border-radius: 999px;
+  transition: width 0.4s var(--ease);
+}
+.quota__hint {
+  font-size: 11px;
+  color: var(--foreground-muted);
+}
+/* Limit-reached variant: a solid white pill so it reads as "locked". */
+.quota--limited {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--foreground);
+  color: var(--background);
+}
+.quota--limited .quota__label {
+  color: var(--background);
+  font-weight: 600;
+}
+.quota--limited .quota__hint {
+  color: rgba(22, 22, 22, 0.7);
 }

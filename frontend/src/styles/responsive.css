@@ -1,0 +1,248 @@
+/* ============================================================
+   M E L O D I A  —  Responsive breakpoints + missing Account styles
+   Desktop-first; we adaptively shrink the sidebar, the chat, the
+   mini-player and the Account / History layouts on small screens.
+   ============================================================ */
+
+/* ---- Missing Account page classes (profile + plan card) ---- */
+.account__who {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.account__name {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+.account__plan {
+  flex: none;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  color: var(--brand-hover);
+  background: var(--brand-soft);
+  border: 1px solid rgba(140, 58, 245, 0.3);
+}
+.account__plan-card {
+  gap: 14px;
+}
+.account__plan-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.account__plan-top h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+/* ============================================================
+   Tablet (<= 1024px)
+   - Sidebar narrows, but stays usable with full labels.
+   - Account profile collapses to stacked on narrow widths.
+   ============================================================ */
+@media (max-width: 1024px) {
+  .chat__thread,
+  .composer {
+    max-width: 100%;
+  }
+  .account__profile {
+    flex-wrap: wrap;
+  }
+  .account__stats {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ============================================================
+   Mobile (<= 768px)
+   - Sidebar becomes an off-canvas overlay (collapsed by the JS,
+     we just cap width and lift it above content).
+   - Mini-player drops the waveform row; keeps transport + title.
+   - History / Account become single-column with tighter padding.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* Sidebar: overlay above content instead of squeezing the main area */
+  .side {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(280px, 84vw) !important;
+    z-index: 60;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  }
+  /* Hide the drag handle on touch — resizing makes no sense here */
+  .side__resize {
+    display: none;
+  }
+  .app__main {
+    padding-bottom: 0;
+  }
+
+  /* Chat: tighter spacing, smaller hero */
+  .chat__bar,
+  .chat__thread {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .chat__empty {
+    margin: 6vh 0;
+  }
+  .chat__empty h1 {
+    font-size: 30px;
+  }
+  .chat__empty-wave {
+    width: 170px;
+    height: 70px;
+  }
+  .bubble {
+    max-width: 92%;
+    font-size: 14px;
+  }
+
+  /* Composer flush to the edges */
+  .composer {
+    padding: 12px 14px 18px;
+  }
+  .composer__advanced {
+    padding: 14px;
+  }
+
+  /* Mini-player: hide the scrub waveform, keep transport compact */
+  .miniplayer {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+  .miniplayer__info {
+    width: auto;
+    min-width: 0;
+    flex: 1;
+  }
+  .miniplayer__wave,
+  .miniplayer__time {
+    display: none;
+  }
+  .miniplayer__right {
+    gap: 4px;
+  }
+  .miniplayer__btn--sm {
+    /* keep volume + loop reachable but small */
+  }
+  /* Make room for the now-compact mini-player */
+  body:has(.miniplayer--open) .app__main {
+    padding-bottom: 68px;
+  }
+
+  /* History: rows wrap, actions always visible (no hover) */
+  .history__list {
+    padding: 8px 16px;
+    gap: 10px;
+  }
+  .history__row {
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .history__info {
+    width: 100%;
+  }
+  .history__wave {
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .history__actions {
+    opacity: 1;
+  }
+  .history__search {
+    padding: 0 16px 8px !important;
+  }
+
+  /* Account: stack everything */
+  .account__card,
+  .account__profile {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+  .account__profile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .account__stats {
+    grid-template-columns: 1fr;
+    padding: 0 16px 20px;
+  }
+  .account > .btn {
+    margin-left: 16px;
+  }
+
+  /* Dashboard: project cards full-width, tighter header */
+  .dashboard {
+    padding: 28px 16px;
+  }
+  .dashboard__title {
+    font-size: 24px;
+  }
+  .project-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Player share page */
+  .player__title {
+    font-size: 28px;
+  }
+  .player__play {
+    width: 72px;
+    height: 72px;
+  }
+
+  /* Auth card: full width with comfortable padding */
+  .auth-page {
+    padding: 16px;
+  }
+  .auth-card {
+    padding: 32px 24px 24px;
+  }
+  .auth-card__title {
+    font-size: 21px;
+  }
+
+  /* Page heads: smaller */
+  .page-head {
+    padding: 24px 16px 10px;
+  }
+  .page-head h1 {
+    font-size: 22px;
+  }
+}
+
+/* ============================================================
+   Small phones (<= 420px)
+   - Quota badge collapses to a single line.
+   - Mini-player keeps only play/pause + title.
+   ============================================================ */
+@media (max-width: 420px) {
+  .chat__empty h1 {
+    font-size: 26px;
+  }
+  .miniplayer__btn--sm {
+    display: none;
+  }
+  .miniplayer__btn:not(.miniplayer__btn--main):not(.miniplayer__close) {
+    display: none;
+  }
+  .account__stat-value {
+    font-size: 24px;
+  }
+}

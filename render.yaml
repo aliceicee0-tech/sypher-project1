@@ -1,0 +1,90 @@
+# Render Blueprint — deploys the Melodia backend as a persistent Node service.
+#
+# Usage:
+#   1. Push this repo to GitHub.
+#   2. In Render, New → Blueprint → select the repo. Render reads this file.
+#   3. Fill in the environment variables in Render's dashboard (see PRODUCTION.md
+#      for the full list). Secrets must NEVER be committed.
+#
+# The service runs `npm start` (= node src/server.js), exactly like local, so
+# the in-memory key failover engine, rate limiters and ban cache all behave as
+# designed. Free tier: the service sleeps after 15 min idle and wakes on the
+# next request (first request takes ~30s).
+
+services:
+  - type: web
+    name: melodia-backend
+    runtime: node
+    plan: free
+    region: frankfurt        # EU; change to oregon if your users are US-side
+    rootDir: backend
+    buildCommand: npm ci --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # ---- Server ----
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      # Set CLIENT_URL to your Vercel frontend URL (CORS origin + OAuth target).
+      # Example: https://melodia.vercel.app
+      - key: CLIENT_URL
+        sync: false
+      # ---- Database (MongoDB Atlas) ----
+      # Paste your Atlas SRV connection string here.
+      - key: MONGODB_URI
+        sync: false
+      # ---- Auth (JWT) — generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      - key: JWT_SECRET
+        sync: false
+      # ---- Google OAuth2 ----
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Must match a redirect URI authorized in Google Cloud Console:
+      # https://<your-frontend-domain>/api/auth/google/callback
+      - key: GOOGLE_REDIRECT_URI
+        sync: false
+      # ---- Treblo key pool ----
+      # RECOMMENDED: ship a key file via a Render Secret File (one key per line)
+      # and point TREBLO_KEYS_FILE at the mounted path. For up to ~20 keys you
+      # can also use numbered env vars TREBLO_API_KEY_1..N (set in dashboard).
+      - key: TREBLO_KEYS_FILE
+        sync: false
+      - key: TREBLO_EXPECTED_KEYS
+        value: "100"
+      - key: TREBLO_API_BASE_URL
+        value: https://api.treblo.com/v1
+      # ---- Beta capacity gate ----
+      - key: MAX_USERS
+        value: "100"
+      # ---- Rate limiting ----
+      - key: GENERATE_RATE_MAX
+        value: "10"
+      - key: GENERATE_RATE_WINDOW_MS
+        value: "60000"
+      # ---- Plans / quota ----
+      - key: FREE_MONTHLY_LIMIT
+        value: "2"
+      # ---- Manual payments ----
+      - key: MVOLA_NUMBER
+        sync: false
+      - key: BANK_IBAN
+        sync: false
+      - key: BANK_HOLDER
+        sync: false
+      # ---- Admin access (comma-separated) ----
+      - key: ADMIN_EMAILS
+        sync: false
+      # ---- Anti-abuse ----
+      - key: ABUSE_MAX_SIGNUPS
+        value: "5"
+      - key: ABUSE_MAX_SIGNUPS_IP
+        value: "15"
+      - key: ABUSE_SIGNUP_WINDOW_MS
+        value: "600000"
+      - key: ABUSE_DEVICE_COOKIE
+        value: melodia_device

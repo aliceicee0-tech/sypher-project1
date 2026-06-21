@@ -1,8 +1,8 @@
 {
-  "name": "musiblock",
+  "name": "melodia",
   "version": "1.0.0",
   "private": true,
-  "description": "Minimalist node-based music creation app powered by the Treblo API.",
+  "description": "Melodia — premium AI music generation studio.",
   "scripts": {
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",

@@ -1,21 +1,89 @@
 :root {
-  /* Black & White Chic palette */
-  --black: #0a0a0a;
-  --white: #ffffff;
-  --gray-50: #fafafa;
-  --gray-100: #f2f2f2;
-  --gray-200: #e6e6e6;
-  --gray-300: #d4d4d4;
-  --gray-400: #a3a3a3;
-  --gray-500: #737373;
+  /* ============================================================
+     M E L O D I A  —  Cyber-Cosmic Premium Theme
+     Curated HSL space color scheme + frosted glassmorphism overlays
+     ============================================================ */
 
-  --line: #e6e6e6;
-  --radius: 10px;
-  --font: 'Inter', -apple-system, 'Helvetica Neue', Arial, sans-serif;
+  /* ---- Surfaces (Deep cyber pitch dark layered background) ---- */
+  --background: #070707; /* App background (cyber pitch dark) */
+  --sidebar: rgba(15, 15, 15, 0.65); /* Sidebar (frosted glass) */
+  --header: rgba(18, 18, 18, 0.6); /* Top bar / header (frosted) */
+  --panel: rgba(24, 24, 24, 0.55); /* Glassmorphic modal panel */
+  --card: rgba(30, 30, 30, 0.45); /* Cards, bubble backgrounds */
+  --card-hover: rgba(45, 45, 45, 0.65);
+  --surface: rgba(255, 255, 255, 0.03); /* Translucent overlays */
+  --surface-hover: rgba(255, 255, 255, 0.08);
 
-  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* ---- Foreground / Text ---- */
+  --foreground: #f5f5f7; /* Cyber white / ultra-light silver-gray */
+  --foreground-soft: #a1a1a6; /* Secondary text */
+  --foreground-muted: #6e6e73; /* Muted text / tertiary */
+
+  /* ---- Brand Accent = Neon Cosmic Silver/Grey ---- */
+  --brand: #ffffff;
+  --brand-hover: #ececec;
+  --brand-soft: rgba(255, 255, 255, 0.08); /* Tinted backgrounds */
+  --brand-softer: rgba(255, 255, 255, 0.04);
+
+  /* ---- Semantic Colors = Curated HSL vibrant neon highlights ---- */
+  --success: #00f5d4; /* Neon cyan */
+  --warning: #ffb703; /* Neon amber */
+  --danger: #ff007f; /* Neon pink-red */
+  --magenta: #f72585; /* Neon magenta */
+  --cyan: #00f5d4; /* Neon cyan duplicate */
+
+  /* ---- Borders ---- */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-strong: rgba(255, 255, 255, 0.12);
+  --border-hover: rgba(255, 255, 255, 0.25); /* Glow hover border */
+
+  /* ---- Selection / Focus ---- */
+  --selected: rgba(255, 255, 255, 0.08);
+  --ring: rgba(255, 255, 255, 0.45);
+  --ring-soft: rgba(255, 255, 255, 0.15);
+
+  /* ---- Shadows (Glowing shadows for neon look) ---- */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.6);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.7), 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.85), 0 0 1px rgba(255, 255, 255, 0.12);
+
+  /* ---- Radii ---- */
+  --radius: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
+
+  --font: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* ---- Easing ---- */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ============================================================
+     Backwards-compatible aliases.
+     ============================================================ */
+  --black: var(--foreground);
+  --white: var(--card);
+  --ink: var(--foreground);
+  --gray-50: var(--surface);
+  --gray-100: var(--surface-hover);
+  --gray-200: var(--card-hover);
+  --gray-300: rgba(255, 255, 255, 0.25);
+  --gray-400: var(--foreground-muted);
+  --gray-500: var(--foreground-soft);
+  --gray-600: var(--foreground-soft);
+  --line: var(--border);
+  --line-strong: var(--border-strong);
+  --glass-bg: rgba(12, 12, 12, 0.72);
+  --glass-blur: 24px;
+  --shadow-focus: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
 }
 
+/* ============================================================
+   Base
+   ============================================================ */
 * {
   box-sizing: border-box;
 }
@@ -29,10 +97,18 @@ body,
 
 body {
   font-family: var(--font);
-  color: var(--black);
-  background: var(--white);
+  color: var(--foreground);
+  background: 
+    radial-gradient(circle at 50% 0%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 10% 20%, rgba(255, 255, 255, 0.015) 0%, transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(255, 255, 255, 0.008) 0%, transparent 40%),
+    var(--background);
+  background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.015em;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+  text-rendering: optimizeLegibility;
 }
 
 button {
@@ -40,54 +116,154 @@ button {
   cursor: pointer;
 }
 
-/* Generic minimalist button */
+/* ============================================================
+   Buttons — monochrome: silver-metallic premium button
+   ============================================================ */
 .btn {
-  border: 1px solid var(--black);
-  background: var(--black);
-  color: var(--white);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: linear-gradient(135deg, #2e2e2e 0%, #171717 100%);
+  color: #ffffff;
   padding: 9px 18px;
-  border-radius: 999px;
-  font-size: 13px;
-  font-weight: 500;
-  transition: opacity 0.25s var(--ease), transform 0.25s var(--ease);
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s var(--ease), transform 0.2s var(--spring);
 }
 .btn:hover {
-  opacity: 0.82;
+  background: linear-gradient(135deg, #3d3d3d 0%, #202020 100%);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), 0 0 10px rgba(255, 255, 255, 0.06);
+  transform: translateY(-1px);
 }
 .btn:active {
-  transform: scale(0.97);
+  transform: scale(0.97) translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 .btn--ghost {
-  background: transparent;
-  color: var(--black);
-  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--foreground-soft);
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+.btn--ghost:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--foreground);
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+}
+.btn--ghost:active {
+  transform: scale(0.97) translateY(0);
+}
+/* Danger = destructive actions (delete). */
+.btn--danger {
+  background: linear-gradient(135deg, #ff007f 0%, #c1005a 100%);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 14px rgba(255, 0, 127, 0.25);
+}
+.btn--danger:hover {
+  background: linear-gradient(135deg, #ff3399 0%, #d6006f 100%);
+  box-shadow: 0 6px 20px rgba(255, 0, 127, 0.4);
+  transform: translateY(-1px);
+}
+.btn--danger:active {
+  transform: scale(0.97) translateY(0);
 }
 
-/* Pulsing gray text for loading states (no color, just opacity) */
+/* ============================================================
+   Loading & animation helpers
+   ============================================================ */
 .pulse {
-  color: var(--gray-400);
+  color: var(--foreground-muted);
   animation: pulse 1.4s ease-in-out infinite;
 }
 @keyframes pulse {
-  0%,
-  100% {
-    opacity: 0.35;
-  }
-  50% {
-    opacity: 0.9;
-  }
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
 }
 
 .fade-in {
-  animation: fadeIn 0.4s var(--ease);
+  animation: fadeIn 0.4s var(--ease-out);
 }
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Shimmer sweep for generating states */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 20%, rgba(255, 255, 255, 0.14) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: shimmer 1.6s var(--ease) infinite;
+}
+@keyframes shimmer {
+  to { transform: translateX(100%); }
+}
+
+/* ============================================================
+   Focus ring (white, monochrome)
+   ============================================================ */
+:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--ring);
+  border-radius: var(--radius);
+}
+
+/* Scrollbar — thin, dark */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  border: 2px solid var(--background);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================
+   Accessibility: respect reduced-motion preferences.
+   Disable all decorative animations for users who request it,
+   while keeping essential transitions (color/opacity) snappy.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
-  to {
-    opacity: 1;
-    transform: none;
+  /* Keep the equalizer / glow halos fully off — they exist only to "wow". */
+  .eq__bar,
+  .soundwave__bar,
+  .chat__empty-wave > span,
+  .glow,
+  .send-ready,
+  .play-btn--active,
+  .hero-grad::before,
+  .player__ghost-glow,
+  .shimmer::after,
+  .skeleton::after {
+    animation: none !important;
   }
 }

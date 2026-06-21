@@ -65,7 +65,8 @@ function authHeaders(apiKey, json = true) {
 }
 
 // Build the request body from our generic inputs, per model.
-function buildPayload(model, { prompt, style_tags = [], duration, lyrics, instrumental, enableStreaming }) {
+function buildPayload(model, opts = {}) {
+  const { prompt, style_tags = [], duration, lyrics, instrumental, enableStreaming } = opts;
   const body = { output_format: 'mp3', stream_format: 'mp3' }; // mp3 for HTML5 <audio>
   if (prompt && prompt.trim()) body.prompt = prompt.trim();
 
@@ -95,21 +96,16 @@ function buildPayload(model, { prompt, style_tags = [], duration, lyrics, instru
  * Tries each configured key in turn. If a key fails for any reason (out of
  * credits, auth error, upstream 5xx, timeout) it is marked failed and the next
  * key is attempted. Throws only when every key has failed.
+ *
+ * @param {object} opts - generation inputs (passed straight to buildPayload)
  */
-export async function startGeneration({
-  prompt,
-  style_tags = [],
-  duration = 30,
-  lyrics = '',
-  instrumental,
-  model = DEFAULT_MODEL,
-  enableStreaming = false,
-}) {
+export async function startGeneration(opts = {}) {
+  const model = opts.model || DEFAULT_MODEL;
   if (isMockMode) {
     return { jobId: `mock_${Date.now()}`, status: 'generating', streamUrl: '' };
   }
 
-  const payload = buildPayload(model, { prompt, style_tags, duration, lyrics, instrumental, enableStreaming });
+  const payload = buildPayload(model, opts);
   const total = getKeys().length;
   const errors = [];
 
@@ -163,7 +159,7 @@ export async function startGeneration({
       jobId: data.task_id,
       status: 'generating',
       // For v3 streaming, the client can start playing this immediately.
-      streamUrl: model === 'v3' && enableStreaming ? streamUrl(data.task_id) : '',
+      streamUrl: model === 'v3' && opts.enableStreaming ? streamUrl(data.task_id) : '',
     };
   }
 

@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import Logo from '../components/Logo.jsx';
+import { detectInAppBrowser, tryOpenInExternalBrowser } from '../utils/inAppBrowser.js';
 
 /**
  * Login / Signup page.
@@ -34,6 +35,12 @@ export default function Login() {
   const errorCode = params.get('error');
   const errorMessage = errorCode ? ERROR_MESSAGES[errorCode] || 'Sign-in failed. Please try again.' : '';
 
+  // In-app browsers (Facebook, TikTok, Instagram, …) are rejected by Google
+  // OAuth with "access blocked". Detect once and warn the user to open the app
+  // in a standalone browser (Chrome / Safari) instead.
+  const [inApp] = useState(() => detectInAppBrowser());
+  const [copied, setCopied] = useState(false);
+
   // After a successful Google OAuth round-trip the backend redirects here with
   // NO error query and a freshly set auth cookie. If we're now logged in, leave
   // the login screen and go to the app. Also covers a manual visit to /login
@@ -41,6 +48,14 @@ export default function Login() {
   useEffect(() => {
     if (!loading && user && !errorCode) navigate('/', { replace: true });
   }, [user, loading, errorCode, navigate]);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard?.writeText(window.location.href);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* clipboard may be blocked in some webviews */ }
+  }
 
   return (
     <div className="auth-page">
@@ -60,6 +75,42 @@ export default function Login() {
         {errorMessage && (
           <div className="auth-card__error" role="alert">
             {errorMessage}
+          </div>
+        )}
+
+        {inApp && (
+          <div className="auth-card__warn" role="alert" style={{
+            background: 'rgba(255, 180, 0, 0.08)',
+            border: '1px solid rgba(255, 180, 0, 0.4)',
+            borderRadius: '10px',
+            padding: '14px 16px',
+            marginBottom: '14px',
+            textAlign: 'left',
+          }}>
+            <strong style={{ display: 'block', marginBottom: '6px' }}>
+              Open in your browser to sign in
+            </strong>
+            <span className="muted small" style={{ display: 'block', marginBottom: '12px' }}>
+              Google blocks sign-in from {inApp}&rsquo;s built-in browser. Tap below to open Melodia
+              in your phone&rsquo;s browser (Chrome or Safari), then tap &ldquo;Continue with Google&rdquo;.
+            </span>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <button
+                className="btn btn--ghost"
+                style={{ flex: '1 1 auto', minWidth: '120px' }}
+                onClick={() => tryOpenInExternalBrowser()}
+              >
+                Open in browser
+              </button>
+              <button
+                className="btn btn--ghost"
+                style={{ flex: '0 0 auto' }}
+                onClick={copyLink}
+                title="Copy the link so you can paste it in your browser"
+              >
+                {copied ? '✓ Copied' : 'Copy link'}
+              </button>
+            </div>
           </div>
         )}
 

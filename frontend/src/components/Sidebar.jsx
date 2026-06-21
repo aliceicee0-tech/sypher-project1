@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext.jsx';
 import Logo from './Logo.jsx';
 
@@ -51,9 +51,9 @@ const Icon = {
   ),
 };
 
-function NavItem({ to, label, children }) {
+function NavItem({ to, label, onClick, children }) {
   return (
-    <NavLink to={to} end={to === '/'} className="side__nav-item">
+    <NavLink to={to} end={to === '/'} className="side__nav-item" onClick={onClick}>
       <span className="side__nav-icon">{children}</span>
       <span className="side__nav-label">{label}</span>
     </NavLink>
@@ -66,12 +66,27 @@ export default function Sidebar() {
     const saved = Number(localStorage.getItem(STORAGE_KEY));
     return saved >= MIN_PCT && saved <= MAX_PCT ? saved : DEFAULT_PCT;
   });
+  // Mobile drawer: hidden by default, opened via the top-left hamburger, and
+  // closed by tapping a nav item, the backdrop, or navigating.
+  const [open, setOpen] = useState(false);
   const dragging = useRef(false);
   // Keep a ref in sync so the pointerup handler always reads the latest value
   // without needing `pct` in its dependency array (which would re-register
   // listeners on every pixel of drag).
   const pctRef = useRef(pct);
   pctRef.current = pct;
+
+  // Auto-close the drawer whenever the route changes (a nav link was tapped).
+  const location = useLocation();
+  useEffect(() => {
+    setOpen(false);
+  }, [location.pathname]);
+
+  // Lock background scroll while the drawer is open on mobile.
+  useEffect(() => {
+    document.body.style.overflow = open ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
 
   const onPointerDown = useCallback((e) => {
     dragging.current = true;
@@ -101,8 +116,32 @@ export default function Sidebar() {
     };
   }, []);
 
+  const close = useCallback(() => setOpen(false), []);
+
   return (
-    <aside className="side" style={{ width: `${pct}%` }}>
+    <>
+      {/* Mobile-only hamburger. Hidden on desktop via CSS (.side__toggle). */}
+      <button
+        type="button"
+        className="side__toggle"
+        aria-label={open ? 'Close menu' : 'Open menu'}
+        aria-expanded={open}
+        aria-controls="app-sidebar"
+        onClick={() => setOpen((v) => !v)}
+      >
+        <span className="side__toggle-bar" />
+        <span className="side__toggle-bar" />
+        <span className="side__toggle-bar" />
+      </button>
+
+      {/* Tap-to-close scrim behind the drawer on mobile. */}
+      <div
+        className={`side__scrim${open ? ' side__scrim--open' : ''}`}
+        onClick={close}
+        aria-hidden="true"
+      />
+
+      <aside id="app-sidebar" className={`side${open ? ' side--open' : ''}`} style={{ width: `${pct}%` }}>
       <div className="side__inner">
         {/* Brand */}
         <div className="side__brand">
@@ -112,19 +151,19 @@ export default function Sidebar() {
 
         {/* Primary navigation */}
         <nav className="side__nav">
-          <NavItem to="/" label="Create">{Icon.spark}</NavItem>
-          <NavItem to="/history" label="History">{Icon.clock}</NavItem>
-          <NavItem to="/collections" label="Collections">{Icon.folder}</NavItem>
+          <NavItem to="/" label="Create" onClick={close}>{Icon.spark}</NavItem>
+          <NavItem to="/history" label="History" onClick={close}>{Icon.clock}</NavItem>
+          <NavItem to="/collections" label="Collections" onClick={close}>{Icon.folder}</NavItem>
         </nav>
 
         {/* Account / sign-in pinned to bottom — ALWAYS visible. */}
         <div className="side__bottom">
           {isAdmin && (
-            <NavItem to="/admin" label="Admin">{Icon.shield}</NavItem>
+            <NavItem to="/admin" label="Admin" onClick={close}>{Icon.shield}</NavItem>
           )}
           {user ? (
             <>
-              <NavLink to="/account" className="side__account">
+              <NavLink to="/account" className="side__account" onClick={close}>
                 {user.avatar_url ? (
                   <img src={user.avatar_url} alt="" className="side__avatar" />
                 ) : (
@@ -143,7 +182,7 @@ export default function Sidebar() {
             // Always show a sign-in entry, regardless of whether Google is
             // configured on the server. The /login page handles the available
             // methods (and gracefully explains Google setup if needed).
-            <NavLink to="/login" className="side__nav-item side__signin-link">
+            <NavLink to="/login" className="side__nav-item side__signin-link" onClick={close}>
               <span className="side__nav-icon">{Icon.user}</span>
               <span className="side__nav-label">Sign in</span>
             </NavLink>
@@ -160,5 +199,6 @@ export default function Sidebar() {
         aria-label="Resize sidebar"
       />
     </aside>
+    </>
   );
 }

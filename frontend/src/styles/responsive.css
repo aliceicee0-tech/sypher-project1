@@ -312,8 +312,11 @@
   }
   /* Keep the volume control reachable on small phones — it's the only way to
      diagnose/fix "no sound" on mobile, and tapping it reveals the slider.
-     Descendant specificity beats the hiding rules above without !important. */
-  .miniplayer__vol-wrap .miniplayer__btn {
+     The :not()-based hiding rule above computes to specificity (0,3,0), so we
+     must exceed that — this rule is (0,4,0). Without it the button stays
+     display:none and the slider is unreachable (the "no volume icon on
+     mobile" bug). */
+  .miniplayer.miniplayer--open .miniplayer__vol-wrap .miniplayer__btn {
     display: inline-flex;
   }
   .account__stat-value {

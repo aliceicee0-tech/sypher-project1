@@ -131,4 +131,20 @@ describe('services/trebloClient (real mode, mocked fetch)', () => {
     const r = await treblo.getGenerationStatus('task-gen');
     expect(r).toEqual({ status: 'generating', audioUrl: '' });
   });
+
+  it('getGenerationStatus exposes a confirmed streamUrl on GENERATING_STREAMING_READY', async () => {
+    // Treblo flips to GENERATING_STREAMING_READY only once the live stream is
+    // actually serving MP3 bytes; before that, /stream/{id} returns a JSON 400
+    // error the <audio> element cannot decode (the "no sound after generation"
+    // bug). Surfacing the stream URL here — never earlier — is what makes early
+    // playback safe.
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => 'GENERATING_STREAMING_READY' });
+    const treblo = await realClient(fetchMock);
+    const r = await treblo.getGenerationStatus('task-streaming');
+    expect(r.status).toBe('streaming');
+    expect(r.audioUrl).toBe('');
+    expect(r.streamUrl).toBe('https://api-stream.treblo.com/stream/task-streaming');
+  });
 });

@@ -49,6 +49,11 @@ function withTimeout(extra = {}) {
 // Treblo status strings -> our internal vocabulary.
 const SUCCESS_STATUS = 'SUCCESS';
 const FAILURE_STATUS = 'FAILURE';
+// Treblo flips to this once the v3 live stream is actually serving audio.
+// Until then, GET /stream/{taskId} returns HTTP 400 "Track not ready for
+// streaming" (a JSON body the <audio> element cannot decode -> silence). We
+// only surface the stream URL to the client once Treblo confirms this state.
+const STREAMING_READY_STATUS = 'GENERATING_STREAMING_READY';
 
 // Real-time streaming host for v3 generations.
 const STREAM_HOST = 'https://api-stream.treblo.com';
@@ -204,6 +209,12 @@ export async function getGenerationStatus(taskId) {
 
   if (rawStatus === FAILURE_STATUS) {
     return { status: 'error', audioUrl: '' };
+  }
+  if (rawStatus === STREAMING_READY_STATUS) {
+    // Treblo guarantees the live stream is now serving real MP3 bytes. Expose
+    // it so the client can start playback early; the next poll resolves the
+    // final, seekable file once status reaches SUCCESS.
+    return { status: 'streaming', audioUrl: '', streamUrl: streamUrl(taskId) };
   }
   if (rawStatus !== SUCCESS_STATUS) {
     return { status: 'generating', audioUrl: '' };

@@ -139,7 +139,17 @@ export function PlayerProvider({ children }) {
     if (el.readyState >= 2) {
       safePlay();
     } else {
+      // If the src is unreadable (e.g. a JSON error body, a 404, or a stream
+      // served before Treblo is ready), 'canplay' never fires — 'error' does.
+      // Listen for both so a bad src surfaces a failure instead of hanging the
+      // player in silence.
+      const onFail = () => {
+        el.removeEventListener('canplay', safePlay);
+        setPlayError('media_error');
+        setPlaying(false);
+      };
       el.addEventListener('canplay', safePlay, { once: true });
+      el.addEventListener('error', onFail, { once: true });
     }
   }, [startPlayback]);
 
@@ -168,12 +178,22 @@ export function PlayerProvider({ children }) {
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
+    // A bad/unreadable src (e.g. a JSON error body served before the stream is
+    // ready, or a 404) must not leave the player frozen in a "playing but
+    // silent" state. Surface the failure so the UI can react, and keep the UI
+    // honest about whether sound is actually coming out.
+    const onError = () => {
+      const code = el.error?.code;
+      setPlayError(code === 4 ? 'unsupported_media' : 'media_error');
+      setPlaying(false);
+    };
     el.addEventListener('timeupdate', onTime);
     el.addEventListener('loadedmetadata', onMeta);
     el.addEventListener('durationchange', onMeta);
     el.addEventListener('ended', onEnd);
     el.addEventListener('play', onPlay);
     el.addEventListener('pause', onPause);
+    el.addEventListener('error', onError);
     return () => {
       el.removeEventListener('timeupdate', onTime);
       el.removeEventListener('loadedmetadata', onMeta);
@@ -181,6 +201,7 @@ export function PlayerProvider({ children }) {
       el.removeEventListener('ended', onEnd);
       el.removeEventListener('play', onPlay);
       el.removeEventListener('pause', onPause);
+      el.removeEventListener('error', onError);
     };
   }, [loadAt, startPlayback]);
 

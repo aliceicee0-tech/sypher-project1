@@ -117,6 +117,7 @@ router.get('/:jobId', async (req, res) => {
       // reflects the up-to-date status across backend restarts.
       const patch = { status: status.status };
       if (status.audioUrl) patch.audioUrl = status.audioUrl;
+      if (status.streamUrl) patch.streamUrl = status.streamUrl;
       await updateGeneration(req.params.jobId, patch);
     }
     res.json(status);

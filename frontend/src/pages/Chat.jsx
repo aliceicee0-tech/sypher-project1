@@ -77,18 +77,27 @@ export default function Chat() {
         duration,
         enableStreaming,
       });
-      const { jobId, streamUrl } = result;
+      const { jobId } = result;
 
       // Update quota from the response if the backend included it.
       if (result.quota) setQuota(result.quota);
 
-      // For v3, expose the live stream immediately so playback can start early.
-      if (streamUrl) patch(botId, { streamUrl, status: 'streaming' });
+      // NOTE: do NOT consume `result.streamUrl` here. Treblo only guarantees
+      // the live stream is serving audio once status flips to
+      // GENERATING_STREAMING_READY; before that, GET /stream/{taskId} returns
+      // HTTP 400 with a JSON error body that the <audio> element can't decode
+      // — which is exactly what caused "no sound after generation". The poll
+      // loop below receives a confirmed streamUrl only when it's safe to play.
 
-      // Poll until the final file is ready, then swap to the permanent URL.
+      // Poll until the final file is ready. Intermediate ticks may flip the
+      // card to 'streaming' (early playback) once Treblo confirms the stream.
       const finalUrl = await api.pollUntilReady(jobId, {
         onTick: (r) => {
-          if (r.status === 'generating' && !streamUrl) patch(botId, { status: 'generating' });
+          if (r.status === 'streaming' && r.streamUrl) {
+            patch(botId, { streamUrl: r.streamUrl, status: 'streaming' });
+          } else if (r.status === 'generating') {
+            patch(botId, { status: 'generating' });
+          }
         },
       });
       patch(botId, { status: 'ready', audioUrl: finalUrl });

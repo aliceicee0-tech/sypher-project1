@@ -310,6 +310,12 @@
   .miniplayer__btn:not(.miniplayer__btn--main):not(.miniplayer__close) {
     display: none;
   }
+  /* Keep the volume control reachable on small phones — it's the only way to
+     diagnose/fix "no sound" on mobile, and tapping it reveals the slider.
+     Descendant specificity beats the hiding rules above without !important. */
+  .miniplayer__vol-wrap .miniplayer__btn {
+    display: inline-flex;
+  }
   .account__stat-value {
     font-size: 24px;
   }

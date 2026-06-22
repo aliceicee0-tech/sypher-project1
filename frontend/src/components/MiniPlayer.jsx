@@ -107,7 +107,8 @@ export default function MiniPlayer() {
           <span style={{ fontSize: 13 }}>{loopIcon}</span>
         </button>
 
-        {/* Volume */}
+        {/* Volume. Uses hover on desktop (pointer:fine) and a tap toggle on
+            touch devices — the hover reveal alone is unreachable on mobile. */}
         <div
           className="miniplayer__vol-wrap"
           onMouseEnter={() => setShowVolume(true)}
@@ -118,7 +119,13 @@ export default function MiniPlayer() {
             className="miniplayer__btn miniplayer__btn--sm"
             aria-label="Volume"
             title={`Volume ${Math.round(volume * 100)}% (M to mute)`}
-            onClick={() => setVolume(volume > 0 ? 0 : 0.8)}
+            onClick={() => {
+              // Tap toggles the slider open/closed on touch; on desktop the
+              // mute toggle still fires when the slider is already visible.
+              setShowVolume((v) => !v);
+              // Clicking the icon itself also toggles mute for a fast path.
+              if (showVolume) setVolume(volume > 0 ? 0 : 0.8);
+            }}
           >
             <VolumeIcon level={volume} />
           </button>

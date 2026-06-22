@@ -34,16 +34,13 @@ const normalize = (t) => ({
 });
 
 export function PlayerProvider({ children }) {
+  // The shared <audio> element is rendered into the DOM below (see the return).
+  // We hold a ref to it so every call site can drive playback directly:
+  //   audioRef.current.src = …; audioRef.current.play(); etc.
+  // iOS Safari / in-app browsers produce NO audio for detached Audio() elements
+  // (play() resolves, currentTime advances, silence) — being in the DOM is what
+  // actually routes sound on mobile.
   const audioRef = useRef(null);
-  if (audioRef.current === null && typeof Audio !== 'undefined') {
-    audioRef.current = new Audio();
-    audioRef.current.preload = 'metadata';
-    // Critical on iOS Safari / mobile browsers: without playsInline the OS
-    // tries to take over with the fullscreen media player (which can fail or
-    // play silently inside in-app browsers). Keeping it inline lets our own
-    // controls drive playback.
-    audioRef.current.playsInline = true;
-  }
 
   const [current, setCurrent] = useState(null); // the playing track record
   const [playing, setPlaying] = useState(false);
@@ -66,11 +63,21 @@ export function PlayerProvider({ children }) {
     return localStorage.getItem(LOOP_KEY) || 'off';
   });
 
-  // Apply volume to the audio element whenever it changes
+  // Apply volume to the audio element whenever it changes (or once it mounts).
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
     localStorage.setItem(VOLUME_KEY, String(volume));
   }, [volume]);
+
+  // Once the DOM <audio> mounts (its ref callback sets audioRef.current), apply
+  // the persisted volume so we're not silently muted on first load.
+  useEffect(() => {
+    if (audioRef.current && audioRef.current.volume !== volume) {
+      audioRef.current.volume = volume;
+    }
+    // We only want this to run once on mount; volume changes are handled above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(LOOP_KEY, loop);
@@ -340,7 +347,31 @@ export function PlayerProvider({ children }) {
     playError,
   };
 
-  return <PlayerContext.Provider value={value}>{children}</PlayerContext.Provider>;
+  return (
+    <PlayerContext.Provider value={value}>
+      {children}
+      {/* The shared audio element MUST live in the DOM (not just new Audio()).
+          iOS Safari / in-app browsers route no audio for detached elements:
+          play() resolves, currentTime advances, but nothing is heard. Hooking
+          the DOM node back into audioRef.current keeps every existing call site
+          (el.src, el.play(), el.volume, …) working unchanged. */}
+      <audio
+        ref={(node) => {
+          if (node && audioRef.current !== node) {
+            // First mount: copy our preferred config onto the DOM element and
+            // adopt it as the shared player. (Subsequent renders: node === same
+            // element, so we skip the re-init.)
+            node.preload = 'metadata';
+            node.playsInline = true;
+            node.volume = volume;
+            audioRef.current = node;
+          }
+        }}
+        style={{ display: 'none' }}
+        aria-hidden="true"
+      />
+    </PlayerContext.Provider>
+  );
 }
 
 export const usePlayer = () => useContext(PlayerContext);

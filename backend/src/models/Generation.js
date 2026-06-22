@@ -25,6 +25,11 @@ const GenerationSchema = new mongoose.Schema(
     // 'generating' | 'streaming' | 'ready' | 'error'
     status: { type: String, default: 'generating', index: true },
     audioUrl: { type: String, default: '' },
+    // Live stream URL for v3 generations, populated once Treblo confirms the
+    // stream is serving audio (status 'streaming'). Superseded by audioUrl once
+    // the final file is ready (status 'ready'). Stored so a reloaded history
+    // page can resume early playback for an in-flight job.
+    streamUrl: { type: String, default: '' },
     error: { type: String, default: '' },
   },
   { timestamps: true }

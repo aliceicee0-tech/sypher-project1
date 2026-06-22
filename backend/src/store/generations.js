@@ -33,6 +33,7 @@ function toRecord(doc) {
     model: doc.model || 'v3',
     status: doc.status || 'generating',
     audioUrl: doc.audioUrl || '',
+    streamUrl: doc.streamUrl || '',
     error: doc.error || '',
     createdAt,
   };
@@ -68,6 +69,7 @@ export async function addGeneration(rec) {
     model: rec.model || 'v3',
     status: rec.status || 'generating',
     audioUrl: rec.audioUrl || '',
+    streamUrl: rec.streamUrl || '',
     error: rec.error || '',
     createdAt: rec.createdAt || Date.now(),
   };

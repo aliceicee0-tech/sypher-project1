@@ -63,7 +63,13 @@ async function getCredits(uid) {
 // the expiry correct even on Render's free tier where the server sleeps (the
 // downgrade happens on the user's very next request, whenever that is).
 //
-// Returns { plan, expiresAt } where expiresAt is null on free / expired.
+// IMPORTANT — legacy grace: accounts that were upgraded BEFORE plan_expires_at
+// existed have plan='starter'/'pro' with plan_expires_at=null. We must NOT treat
+// a missing date as "expired" — that would silently strip paying users of their
+// plan the moment they read /api/usage. Only an explicit date in the past means
+// lapsed; a missing date means "no expiry recorded, keep the plan".
+//
+// Returns { plan, expiresAt } where expiresAt is null on free / legacy.
 async function getPlan(uid) {
   if (!isDbReady()) return { plan: 'free', expiresAt: null };
   const user = await User.findById(uid).lean();
@@ -72,13 +78,18 @@ async function getPlan(uid) {
   const expiresAt = user.plan_expires_at || null;
   // Free is perpetual — never expires.
   if (plan === 'free') return { plan, expiresAt: null };
+  // Paid plan with no recorded expiry (legacy, pre-dating the field): keep it.
+  // We deliberately do NOT backfill a 30-day window here — that would change
+  // behavior for every existing paying user at once. The plan stays until the
+  // operator or a future renewal sets an explicit plan_expires_at.
+  if (!expiresAt) return { plan, expiresAt: null };
   // Paid plan still within its 30-day window.
-  if (expiresAt && new Date(expiresAt).getTime() > Date.now()) {
+  if (new Date(expiresAt).getTime() > Date.now()) {
     return { plan, expiresAt };
   }
-  // Lapsed: downgrade to free so the user is blocked from the paid allowance.
-  // Only the plan + expiry change — usage/credits are untouched, so any
-  // remaining free allowance or bought credits still apply.
+  // Lapsed (explicit date in the past): downgrade to free so the user is blocked
+  // from the paid allowance. Only the plan + expiry change — usage/credits are
+  // untouched, so any remaining free allowance or bought credits still apply.
   await User.updateOne(
     { _id: uid },
     { $set: { plan: 'free', plan_expires_at: null } }

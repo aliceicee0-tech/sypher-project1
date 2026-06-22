@@ -109,6 +109,33 @@ describe('subscription expiry — lazy downgrade to free when plan lapses', () =
     expect(u.plan).toBe('pro');
   });
 
+  it('a LEGACY paid user (no plan_expires_at) is NOT downgraded — missing date means "no expiry recorded", not "expired"', async () => {
+    // Regression guard: the previous version of getPlan treated a missing
+    // plan_expires_at as "expired" and silently downgraded every paying user
+    // whose account predated the field. A missing date must keep the plan.
+    const uid = 'legacy_paid_user';
+    userStore.seed({
+      _id: uid,
+      google_id: 'g_legacy',
+      email: 'legacy@melodia.local',
+      plan: 'starter',
+      plan_expires_at: null, // pre-existing paid account, never had an expiry set
+      usage: { month: currentMonth(), count: 0 },
+      credits: 0,
+      status: 'active',
+    });
+
+    const usage = await request(app).get('/api/usage').set(authHeader(uid, 'legacy@melodia.local'));
+    expect(usage.body.plan).toBe('starter'); // NOT downgraded
+    expect(usage.body.limit).toBe(10); // starter allowance
+    expect(usage.body.canGenerate).toBe(true);
+    expect(usage.body.planExpiresAt).toBeNull();
+
+    // Record untouched — no spurious write.
+    const u = userStore.peek(uid);
+    expect(u.plan).toBe('starter');
+  });
+
   it('a paid plan PAST its expiry date is downgraded to free on the next quota read', async () => {
     const uid = 'expiry_lapsed_user';
     userStore.seed({

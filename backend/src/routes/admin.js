@@ -159,4 +159,49 @@ async function setUserStatus(req, res, status) {
 router.post('/users/:id/ban', (req, res) => setUserStatus(req, res, 'banned'));
 router.post('/users/:id/unban', (req, res) => setUserStatus(req, res, 'active'));
 
+/**
+ * POST /api/admin/users/:id/plan -> set/extend a user's plan manually.
+ *
+ * Body: { plan: 'free'|'starter'|'pro', days?: number }
+ *
+ * Use cases:
+ *   - Recover a plan that was wrongly downgraded (e.g. by a previous bug).
+ *   - Grant an extended/comped subscription (days overrides the default window).
+ *   - Manually move someone to free.
+ *
+ * For paid plans we set plan_expires_at = now + (days||30)d so getPlan() treats
+ * it as active. For 'free' we clear the expiry (free is perpetual). The monthly
+ * usage counter is reset so the new allowance is immediately spendable — same
+ * behavior as grantOrder() on a paid order confirmation.
+ */
+router.post('/users/:id/plan', async (req, res) => {
+  try {
+    if (!isDbReady()) return res.status(503).json({ error: 'database unavailable' });
+    const plan = String(req.body?.plan || '');
+    const validPlans = new Set(['free', 'starter', 'pro', 'premium']);
+    if (!validPlans.has(plan)) {
+      return res.status(400).json({ error: 'invalid plan' });
+    }
+    const days = Math.max(1, Number(req.body?.days) || 30);
+    const update =
+      plan === 'free'
+        ? { $set: { plan: 'free', plan_expires_at: null } }
+        : {
+            $set: {
+              plan,
+              plan_expires_at: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
+              'usage.count': 0, // reset so the new allowance is immediately usable
+            },
+          };
+    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true })
+      .select('-__v')
+      .lean();
+    if (!user) return res.status(404).json({ error: 'user not found' });
+    res.json({ user });
+  } catch (err) {
+    console.error('[admin] set plan failed:', err.message);
+    res.status(500).json({ error: 'could not set plan' });
+  }
+});
+
 export { router as adminRouter };

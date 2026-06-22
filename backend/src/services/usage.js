@@ -55,13 +55,35 @@ async function getCredits(uid) {
   return memoryCredits.get(uid) || 0;
 }
 
-// Load the user's plan (so the quota reflects the right allowance).
+// Load the user's plan, lazily downgrading to 'free' if a paid plan has lapsed.
+//
+// Paid plans (starter/pro) last 30 days from admin confirmation. We don't run a
+// cron to expire them; instead every quota read checks plan_expires_at and, if
+// it's in the past, flips the user back to free + clears the date. This keeps
+// the expiry correct even on Render's free tier where the server sleeps (the
+// downgrade happens on the user's very next request, whenever that is).
+//
+// Returns { plan, expiresAt } where expiresAt is null on free / expired.
 async function getPlan(uid) {
-  if (isDbReady()) {
-    const user = await User.findById(uid).lean();
-    return user?.plan || 'free';
+  if (!isDbReady()) return { plan: 'free', expiresAt: null };
+  const user = await User.findById(uid).lean();
+  if (!user) return { plan: 'free', expiresAt: null };
+  const plan = user.plan || 'free';
+  const expiresAt = user.plan_expires_at || null;
+  // Free is perpetual — never expires.
+  if (plan === 'free') return { plan, expiresAt: null };
+  // Paid plan still within its 30-day window.
+  if (expiresAt && new Date(expiresAt).getTime() > Date.now()) {
+    return { plan, expiresAt };
   }
-  return 'free';
+  // Lapsed: downgrade to free so the user is blocked from the paid allowance.
+  // Only the plan + expiry change — usage/credits are untouched, so any
+  // remaining free allowance or bought credits still apply.
+  await User.updateOne(
+    { _id: uid },
+    { $set: { plan: 'free', plan_expires_at: null } }
+  );
+  return { plan: 'free', expiresAt: null };
 }
 
 /**
@@ -71,7 +93,7 @@ async function getPlan(uid) {
  * is blocked only when both the monthly count >= limit AND credits === 0.
  */
 export async function getQuota(uid) {
-  const [plan, { month, count }, credits] = await Promise.all([
+  const [{ plan, expiresAt }, { month, count }, credits] = await Promise.all([
     getPlan(uid),
     getUsage(uid),
     getCredits(uid),
@@ -81,6 +103,7 @@ export async function getQuota(uid) {
   const canGenerate = monthlyRemaining > 0 || credits > 0;
   return {
     plan,
+    planExpiresAt: expiresAt, // ISO string or null (free / lapsed)
     month,
     count,
     limit,

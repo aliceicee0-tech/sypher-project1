@@ -11,6 +11,10 @@ import { addCredits } from '../services/usage.js';
 
 const router = Router();
 
+// How long a paid plan lasts from the moment an admin confirms payment. After
+// this window the user is lazily downgraded to 'free' (services/usage.js#getPlan).
+const PLAN_DURATION_DAYS = 30;
+
 // In-memory fallback so the app works without MongoDB.
 const memory = new Map(); // order_id -> order
 
@@ -110,9 +114,12 @@ async function grantOrder(order) {
     return null;
   }
   if (order.item.type === 'plan') {
+    // A paid plan lasts 30 days from confirmation. When it lapses the user is
+    // lazily downgraded to 'free' by services/usage.js#getPlan.
+    const expiresAt = new Date(Date.now() + PLAN_DURATION_DAYS * 24 * 60 * 60 * 1000);
     const user = await User.findByIdAndUpdate(
       order.owner_uid,
-      { $set: { plan: order.item.plan } },
+      { $set: { plan: order.item.plan, plan_expires_at: expiresAt } },
       { new: true }
     ).lean();
     // Reset monthly usage so the new allowance is immediately usable.

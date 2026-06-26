@@ -115,7 +115,16 @@ export default function Login() {
         )}
 
         <div className="auth-card__methods">
-          {googleConfigured ? (
+          {loading ? (
+            // The auth check (/api/auth/me) hasn't resolved yet. On Render's
+            // free tier this can take ~30-50s (cold start), so the button MUST
+            // not be replaced by the "isn't configured" message in the
+            // meantime — that message is only truthful once we KNOW Google is
+            // off (a definitive false), not while we merely haven't heard back.
+            <div className="auth-card__loading" aria-live="polite">
+              <span className="pulse small">Checking your session…</span>
+            </div>
+          ) : googleConfigured ? (
             <button className="btn auth-google" onClick={login}>
               <GoogleGlyph />
               Continue with Google

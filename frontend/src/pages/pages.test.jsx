@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 
@@ -73,6 +73,23 @@ describe('pages (smoke render)', () => {
   it('Login renders', () => {
     const { container } = render(<Tree><Login /></Tree>);
     expect(container).toBeDefined();
+  });
+
+  it('Login never shows "isn\'t configured" while the session check is in flight', async () => {
+    // Regression: /api/auth/me can take ~30-50s on Render's free tier (cold
+    // start). While loading, googleConfigured defaults to false, which used to
+    // make the "isn't configured" message flash before the real answer
+    // arrived. The button/message must stay hidden until we KNOW the status.
+    // Hold the me() promise pending so loading stays true throughout.
+    let resolveMe;
+    apiMock.me.mockReturnValueOnce(new Promise((r) => { resolveMe = r; }));
+    render(<Tree route="/login"><Login /></Tree>);
+    expect(screen.queryByText(/isn.t configured/i)).toBeNull();
+    expect(screen.queryByText('Continue with Google')).toBeNull();
+    // Resolve and confirm the Google button appears (proving the initial null
+    // wasn't a permanent broken state).
+    resolveMe({ user: null, googleConfigured: true, isAdmin: false });
+    await waitFor(() => expect(screen.getByText('Continue with Google')).toBeDefined());
   });
 
   it('Account renders', () => {
